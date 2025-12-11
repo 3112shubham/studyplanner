@@ -184,7 +184,26 @@ export async function POST(request) {
     const planRequestId = firestoreData.name.split('/').pop();
     console.log('Plan request created successfully:', planRequestId);
 
-    // Step 2: Update user document with plan request reference
+    // Step 2: Fetch existing user document to preserve all fields
+    const getUserResponse = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    let existingUserFields = {};
+    if (getUserResponse.ok) {
+      const existingUser = await getUserResponse.json();
+      existingUserFields = existingUser.fields || {};
+      console.log('Existing user fields preserved:', Object.keys(existingUserFields));
+    }
+
+    // Step 3: Update user document with plan request reference while preserving all existing fields
     const userUpdateResponse = await fetch(
       `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}`,
       {
@@ -195,19 +214,22 @@ export async function POST(request) {
         },
         body: JSON.stringify({
           fields: {
+            ...existingUserFields, // Include all existing fields
             planRequest: { stringValue: planRequestId },
             planRequestStatus: { stringValue: 'pending' },
             planRequestDate: { timestampValue: new Date().toISOString() },
+            updatedAt: { timestampValue: new Date().toISOString() },
           },
         }),
       }
     );
 
     if (!userUpdateResponse.ok) {
-      console.error('User update error:', await userUpdateResponse.json());
+      const errorData = await userUpdateResponse.json();
+      console.error('User update error:', errorData);
       // Still return success since the plan request was created
     } else {
-      console.log('User document updated with plan request');
+      console.log('User document updated with plan request while preserving existing fields');
     }
 
     return NextResponse.json({

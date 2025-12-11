@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import toast from 'react-hot-toast';
-import Link from 'next/link';
 import PlanRequestModal from '@/components/User/PlanRequestModal';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -14,7 +12,6 @@ export default function DashboardPage() {
   const [currentPlan, setCurrentPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [showPlanModal, setShowPlanModal] = useState(false);
-  const [expandedDays, setExpandedDays] = useState({});
   const [pendingRequest, setPendingRequest] = useState(null);
   const [stats, setStats] = useState({
     completedTopics: 0,
@@ -36,6 +33,29 @@ export default function DashboardPage() {
       checkPendingRequest();
     }
   }, [user?.uid, authLoading]);
+
+  // Refresh progress every 3 seconds when plan exists
+  useEffect(() => {
+    if (currentPlan && user?.uid) {
+      const interval = setInterval(() => {
+        fetchProgressStats();
+      }, 3000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [currentPlan, user?.uid]);
+
+  // Re-fetch plan periodically to get latest stats
+  useEffect(() => {
+    if (currentPlan && user?.uid && authLoading === false) {
+      const interval = setInterval(() => {
+        console.log('Refreshing plan stats...');
+        fetchUserPlan();
+      }, 10000); // Every 10 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [currentPlan, user?.uid, authLoading]);
 
   const checkPendingRequest = async () => {
     try {
@@ -69,7 +89,7 @@ export default function DashboardPage() {
         return;
       }
 
-      console.log('Fetching plan...');
+      console.log('Fetching plan for user:', user?.uid);
       const response = await fetch(`/api/user/currentplan`, {
         method: 'GET',
         headers: {
@@ -80,16 +100,29 @@ export default function DashboardPage() {
 
       console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
+      console.log('Response data:', {
+        success: data.success,
+        hasPlan: !!data.plan,
+        daysCount: data.plan?.days?.length,
+        error: data.error,
+      });
       
       if (!response.ok) {
         console.error('API Error:', data);
         toast.error(data.error || 'Failed to load plan');
         setCurrentPlan(null);
+        setPendingRequest(null);
       } else if (data.success && data.plan) {
+        console.log('✅ Plan received successfully:', {
+          planId: data.plan.planId,
+          totalDays: data.plan.totalDays,
+          firstDay: data.plan.days?.[0]?.title,
+        });
         setCurrentPlan(data.plan);
+        setPendingRequest(null); // Clear pending request if plan exists
         calculateStats(data.plan);
       } else {
+        console.log('No plan found in response');
         setCurrentPlan(null);
       }
     } catch (error) {
@@ -102,27 +135,87 @@ export default function DashboardPage() {
   };
 
   const calculateStats = (plan) => {
-    // Calculate stats from the new plan structure
-    if (plan && plan.days && Array.isArray(plan.days)) {
-      let totalTopics = 0;
-      let completedTopics = 0;
-      
-      plan.days.forEach(day => {
-        if (day.topics && Array.isArray(day.topics)) {
-          totalTopics += day.topics.length;
-        }
-        if (day.completed) {
-          completedTopics += (day.topics?.length || 0);
-        }
+    console.log('calculateStats called with plan:', plan);
+    
+    // First, fetch the actual progress from the database
+    fetchProgressStats();
+    
+    // Calculate total subtopics from plan structure
+    try {
+      if (plan && plan.days && Array.isArray(plan.days) && plan.days.length > 0) {
+        let totalSubtopics = 0;
+        
+        console.log('Processing', plan.days.length, 'days');
+        
+        plan.days.forEach((day, dayIdx) => {
+          try {
+            if (day.subtopics && Array.isArray(day.subtopics) && day.subtopics.length > 0) {
+              // day.subtopics is an array of subject objects
+              day.subtopics.forEach((subject, subIdx) => {
+                if (subject && subject.topics && Array.isArray(subject.topics)) {
+                  subject.topics.forEach((topic) => {
+                    if (topic && topic.subtopics && Array.isArray(topic.subtopics)) {
+                      totalSubtopics += topic.subtopics.length;
+                    }
+                  });
+                }
+              });
+            }
+          } catch (dayError) {
+            console.error(`Error processing day ${dayIdx}:`, dayError);
+          }
+        });
+
+        console.log('Final total subtopics:', totalSubtopics);
+        
+        setStats(prev => ({
+          ...prev,
+          totalTopics: totalSubtopics,
+        }));
+      } else {
+        console.log('Plan has no days or is empty');
+        setStats(prev => ({
+          ...prev,
+          totalTopics: 0,
+        }));
+      }
+    } catch (error) {
+      console.error('Error in calculateStats:', error);
+      setStats(prev => ({
+        ...prev,
+        totalTopics: 0,
+      }));
+    }
+  };
+
+  const fetchProgressStats = async () => {
+    try {
+      const token = localStorage.getItem('firebaseToken');
+      if (!token) return;
+
+      const response = await fetch(`/api/user/progress`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
 
-      const progressPercentage = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
+      const data = await response.json();
+      if (data.success && data.progress) {
+        // Count completed items from progress object
+        const completedCount = Object.values(data.progress).filter(v => v === true).length;
+        const totalCount = Object.keys(data.progress).filter(key => key.startsWith('day_')).length;
+        const progressPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-      setStats({
-        completedTopics: completedTopics,
-        totalTopics: totalTopics,
-        progressPercentage: progressPercentage,
-      });
+        setStats(prev => ({
+          ...prev,
+          completedTopics: completedCount,
+          progressPercentage: progressPercentage,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching progress stats:', error);
     }
   };
 
@@ -199,239 +292,173 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="max-w-7xl mx-auto px-4 py-12">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome, {userData?.name || 'User'}!
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+            Welcome, {userData?.name || 'User'}! 👋
           </h1>
-          <p className="text-gray-600">
-            Your GATE CS Study Dashboard
+          <p className="text-lg text-gray-600">
+            Your GATE CSE Study Dashboard
           </p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Progress Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-sm font-medium text-gray-600 mb-2">
-              Overall Progress
-            </h2>
-            <p className="text-3xl font-bold text-primary-500 mb-4">
+        {/* Debug Info - Remove in production */}
+        {currentPlan && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+            <details className="cursor-pointer">
+              <summary className="font-semibold text-yellow-900">Debug Info (Click to expand)</summary>
+              <div className="mt-4 bg-black text-green-400 p-4 rounded font-mono text-xs overflow-auto max-h-96">
+                <div>Plan ID: {currentPlan.planId}</div>
+                <div>Total Days: {currentPlan.days?.length || 0}</div>
+                <div>Duration: {currentPlan.duration}</div>
+                {currentPlan.days?.[0] && (
+                  <>
+                    <div className="mt-2 border-t border-green-400 pt-2">First Day:</div>
+                    <div>Day Number: {currentPlan.days[0].dayNumber}</div>
+                    <div>Title: {currentPlan.days[0].title}</div>
+                    <div>Subtopics Count: {currentPlan.days[0].subtopics?.length || 0}</div>
+                    <div>Subtopics Type: {typeof currentPlan.days[0].subtopics}</div>
+                    <div>Subtopics Sample: {JSON.stringify(currentPlan.days[0].subtopics?.slice(0, 1), null, 2)}</div>
+                  </>
+                )}
+              </div>
+            </details>
+          </div>
+        )}
+
+        {/* Stats Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {/* Overall Progress Card */}
+          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-blue-500">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                Overall Progress
+              </h2>
+              <div className="text-2xl">📊</div>
+            </div>
+            <p className="text-4xl font-bold text-blue-600 mb-3">
               {stats.progressPercentage}%
             </p>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
               <div
-                className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500"
                 style={{ width: `${stats.progressPercentage}%` }}
               ></div>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-600">
               {stats.completedTopics} of {stats.totalTopics} topics completed
             </p>
           </div>
 
           {/* Plan Status Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-sm font-medium text-gray-600 mb-2">
-              Plan Status
-            </h2>
-            <p className="text-3xl font-bold mb-4" style={{
-              color: currentPlan ? '#3b82f6' : pendingRequest ? '#f59e0b' : '#6b7280'
+          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-emerald-500">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                Plan Status
+              </h2>
+              <div className="text-2xl">
+                {currentPlan ? '✅' : pendingRequest ? '⏳' : '❌'}
+              </div>
+            </div>
+            <p className="text-2xl font-bold mb-2" style={{
+              color: currentPlan ? '#10b981' : pendingRequest ? '#f59e0b' : '#6b7280'
             }}>
-              {currentPlan ? 'Active' : pendingRequest ? 'REQUEST PENDING' : 'No Plan'}
+              {currentPlan ? 'Active' : pendingRequest ? 'Pending' : 'No Plan'}
             </p>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600">
               {currentPlan 
-                ? `${currentPlan.duration || 35} day plan` 
+                ? `${currentPlan.duration || 35}-day plan` 
                 : pendingRequest 
-                  ? `Your ${pendingRequest} request is being reviewed`
-                  : 'Create or request a plan'}
+                  ? 'Review in progress'
+                  : 'Request to get started'}
             </p>
-            {!currentPlan && !pendingRequest && (
-              <button
-                onClick={() => setShowPlanModal(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
-              >
-                Request a Plan
-              </button>
-            )}
-            {pendingRequest && (
-              <button
-                disabled
-                className="w-full bg-amber-500 text-white font-medium py-2 px-4 rounded-lg cursor-not-allowed opacity-75 text-sm"
-              >
-                Request Pending
-              </button>
-            )}
           </div>
 
           {/* Total Topics Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-sm font-medium text-gray-600 mb-2">
-              Total Topics
-            </h2>
-            <p className="text-3xl font-bold text-green-500 mb-4">
+          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                Total Topics
+              </h2>
+              <div className="text-2xl">📚</div>
+            </div>
+            <p className="text-4xl font-bold text-purple-600 mb-3">
               {stats.totalTopics}
             </p>
             <p className="text-sm text-gray-600">
-              Topics in your plan
+              Topics to cover
             </p>
           </div>
-        </div>
 
-        {/* Actions Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {currentPlan ? (
-              <Link
-                href="/study"
-                className="inline-block bg-primary-500 hover:bg-primary-600 text-white font-medium py-3 px-6 rounded-lg transition-colors text-center"
-              >
-                Start Studying
-              </Link>
-            ) : (
+          {/* Actions Card */}
+          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-orange-500">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                Actions
+              </h2>
+              <div className="text-2xl">⚡</div>
+            </div>
+            <div className="flex flex-col gap-2">
               <button
-                onClick={() => setShowPlanModal(true)}
-                className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors text-center"
+                onClick={() => currentPlan ? router.push('/plan') : setShowPlanModal(true)}
+                className={`w-full font-semibold py-3 px-4 rounded-lg transition-all duration-200 ${
+                  currentPlan
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:shadow-lg'
+                    : pendingRequest
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg'
+                }`}
+                disabled={pendingRequest && !currentPlan}
               >
-                Request a Plan
+                {currentPlan ? 'View Your Plan' : pendingRequest ? 'Pending...' : 'Request Plan'}
               </button>
-            )}
-            <Link
-              href="/profile"
-              className="inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors text-center"
-            >
-              View Profile
-            </Link>
-          </div>
-        </div>
-
-        {/* Plan Overview */}
-        {currentPlan && currentPlan.days && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              Your Study Plan ({currentPlan.days.length} Days)
-            </h2>
-            
-            <div className="space-y-4">
-              {currentPlan.days.map((dayPlan, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => toggleDayExpanded(dayPlan.dayNumber)}
-                    className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 p-4 transition-colors"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <span className="font-bold text-lg text-primary-600 bg-primary-100 px-3 py-1 rounded">
-                        Day {dayPlan.dayNumber}
-                      </span>
-                      <div className="text-left">
-                        <p className="font-semibold text-gray-900">
-                          {dayPlan.section || 'Study Topic'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {dayPlan.topics?.length || 0} topics • {dayPlan.hours} hours
-                        </p>
-                      </div>
-                    </div>
-                    {expandedDays[dayPlan.dayNumber] ? (
-                      <ChevronUp className="h-5 w-5 text-gray-600" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-gray-600" />
-                    )}
-                  </button>
-
-                  {expandedDays[dayPlan.dayNumber] && (
-                    <div className="p-4 border-t border-gray-200 space-y-4">
-                      {/* Day Details */}
-                      <div>
-                        <h4 className="font-semibold text-gray-900 mb-3 text-primary-600">
-                          {dayPlan.title}
-                        </h4>
-                        
-                        {/* Topics */}
-                        {dayPlan.topics && dayPlan.topics.length > 0 && (
-                          <div className="mb-4">
-                            <h5 className="text-sm font-semibold text-gray-700 mb-2">Topics:</h5>
-                            <div className="space-y-2 ml-4">
-                              {dayPlan.topics.map((topic, idx) => (
-                                <div key={idx} className="text-sm text-gray-700 flex items-start">
-                                  <span className="text-primary-500 mr-2">•</span>
-                                  <span>{topic}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Subtopics */}
-                        {dayPlan.subtopics && dayPlan.subtopics.length > 0 && (
-                          <div className="mb-4">
-                            <h5 className="text-sm font-semibold text-gray-700 mb-2">Subjects:</h5>
-                            <div className="space-y-3 ml-4">
-                              {dayPlan.subtopics.map((subject, idx) => (
-                                <div key={idx}>
-                                  <p className="font-medium text-gray-800">{subject.name}</p>
-                                  {subject.topics && subject.topics.map((topic, topicIdx) => (
-                                    <div key={topicIdx} className="ml-2 mt-1">
-                                      <p className="text-sm text-gray-700 font-medium">{topic.name}</p>
-                                      {topic.subtopics && (
-                                        <ul className="ml-4 mt-1">
-                                          {topic.subtopics.map((subtopic, subIdx) => (
-                                            <li key={subIdx} className="text-xs text-gray-600">
-                                              {subtopic.name}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Study Details */}
-                        <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
-                          <div>
-                            <p className="text-xs text-gray-600">Study Hours</p>
-                            <p className="font-semibold text-gray-900">{dayPlan.hours}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Status</p>
-                            <p className="font-semibold text-gray-900">
-                              {dayPlan.completed ? '✓ Completed' : 'Pending'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+              
+              {(currentPlan || pendingRequest) && (
+                <button
+                  onClick={fetchUserPlan}
+                  disabled={planLoading}
+                  className="w-full font-semibold py-2 px-4 rounded-lg transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm flex items-center justify-center gap-2"
+                >
+                  {planLoading ? '⏳ Refreshing...' : '🔄 Refresh'}
+                </button>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
-        {!currentPlan && !planLoading && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">
-              No Study Plan Yet
+        {/* Empty State */}
+        {!currentPlan && !planLoading && !pendingRequest && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-12 text-center">
+            <div className="text-6xl mb-4">🎯</div>
+            <h3 className="text-2xl font-bold text-blue-900 mb-3">
+              Get Your Personalized Study Plan
             </h3>
-            <p className="text-blue-700 mb-4">
-              Request a personalized study plan and our team will create one for you!
+            <p className="text-blue-700 mb-6 max-w-2xl mx-auto">
+              Request a customized 35-day GATE CSE study plan tailored to your strength levels and learning pace.
             </p>
             <button
               onClick={() => setShowPlanModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-8 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
             >
-              Request a Plan
+              Request a Plan Now
             </button>
+          </div>
+        )}
+
+        {pendingRequest && !currentPlan && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-12 text-center">
+            <div className="text-6xl mb-4">⏳</div>
+            <h3 className="text-2xl font-bold text-amber-900 mb-3">
+              Your Plan is Being Created
+            </h3>
+            <p className="text-amber-700 mb-3">
+              Our team is working on your personalized study plan. We'll notify you once it's ready!
+            </p>
+            <p className="text-sm text-amber-600">
+              Status: {pendingRequest}
+            </p>
           </div>
         )}
       </div>

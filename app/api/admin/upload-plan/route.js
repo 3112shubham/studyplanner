@@ -115,27 +115,55 @@ export async function POST(request) {
       console.error('Request update error:', await updateRequestResponse.json());
     }
 
-    // Update user document with current plan (PATCH only updates specified fields)
+    // First, fetch the existing user document to preserve all fields
+    const getUserResponse = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    let existingFields = {};
+    if (getUserResponse.ok) {
+      const existingUser = await getUserResponse.json();
+      existingFields = existingUser.fields || {};
+      console.log('Existing user fields:', Object.keys(existingFields));
+    }
+
+    // Update user document with current plan while preserving all existing fields
+    const updateUserData = {
+      fields: {
+        ...existingFields, // Include all existing fields
+        currentPlan: { stringValue: planDocId },
+        planRequestStatus: { stringValue: 'approved' },
+        currentPlanCreatedAt: { timestampValue: new Date().toISOString() },
+        updatedAt: { timestampValue: new Date().toISOString() },
+      },
+    };
+
     const updateUserResponse = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}?updateMask.fieldPaths=currentPlan&updateMask.fieldPaths=planRequestStatus&updateMask.fieldPaths=currentPlanCreatedAt`,
+      `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}`,
       {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          fields: {
-            currentPlan: { stringValue: planDocId },
-            planRequestStatus: { stringValue: 'approved' },
-            currentPlanCreatedAt: { timestampValue: new Date().toISOString() },
-          },
-        }),
+        body: JSON.stringify(updateUserData),
       }
     );
 
     if (!updateUserResponse.ok) {
-      console.error('User update error:', await updateUserResponse.json());
+      const errorData = await updateUserResponse.json();
+      console.error('User update error:', errorData);
+      // Log detailed error info
+      console.error('Failed to update user document with fields:', Object.keys(updateUserData.fields));
+    } else {
+      console.log('User document updated successfully with plan:', planDocId);
     }
 
     return NextResponse.json({

@@ -91,7 +91,6 @@ function generateStudyPlan(totalDays, topicStrengths) {
 function calculateAverageStrength(topicStrengths, subject) {
   // Map subjects to topic IDs
   const subjectMapping = {
-    'General Aptitude': ['quantitative_aptitude', 'logical_reasoning', 'verbal_ability', 'reading_comprehension'],
     'Engineering Mathematics': ['linear_algebra', 'calculus', 'probability_stats', 'discrete_math_1', 'discrete_math_2'],
     'Digital Logic': ['digital_logic'],
     'Computer Organization & Architecture': ['coa'],
@@ -137,7 +136,7 @@ function generateGPTPrompt(days, topicStrengths, studyPlan) {
     });
   });
 
-  const prompt = `You are an expert GATE (Graduate Aptitude Test for Engineering) study planner. Generate a comprehensive, day-wise study plan in JSON format.
+const prompt = `You are an expert GATE (Graduate Aptitude Test for Engineering) study planner. Generate a comprehensive, day-wise study plan in JSON format.
 
 TOTAL PREPARATION DAYS: ${days}
 
@@ -146,73 +145,27 @@ SUBJECT-WISE BREAKDOWN (with importance, user's strength level, and topics):
 ${JSON.stringify(detailedCurriculum, null, 2)}
 
 INSTRUCTIONS:
-1. Create a detailed ${days}-day study plan
-2. IMPORTANT: Include General Aptitude (all 3 topics: Verbal Ability, Numerical Ability, Logical Reasoning) in EVERY SINGLE DAY
-3. General Aptitude daily prep_time_hours should be allocated based on user's strength level:
-   * For WEAK strength: 1.5-2 hours per day
-   * For MODERATE strength: 1-1.5 hours per day
-   * For STRONG strength: 0.5-1 hour per day
+1. Create a detailed ${days}-day study plan.
 
-4. For remaining time each day (after General Aptitude):
-   - Cover other subjects based on their importance percentages
-   - Allocate prep_time_hours for each subtopic based on its weightage and user's strength level:
-     * For WEAK strength: More time (2-3 hours per subtopic)
-     * For MODERATE strength: Balanced time (1.5-2 hours per subtopic)
-     * For STRONG strength: Less time, focus on revision (0.5-1 hour per subtopic)
-   - Total prep_time_hours per day should be 8-10 hours
+2. Each day MUST include subjects based on importance distribution.
 
-5. Allocation strategy:
-   - General Aptitude: MANDATORY EVERY DAY with strength-based time allocation
-   - Balance other subjects based on importance
-   - Allocate more time for weak subjects
-   - Include mock tests periodically
+3. Allocation rules:
+   - Allocate each subtopic based on its weightage and user's strength level:
+   - User should not be overloaded
+   - You can club weak topics with strong
+
+4. Allocation strategy:
+   - Balance subjects based on importance percentages.
+   - Cover all topics and subtopics across the full schedule.
+   - All subjects must include the field "strength_level".
+   - Include all subtopics for the topic chosen on a given day.
 
 REQUIRED JSON FORMAT (exact output structure):
 {
   "day1": {
     "subjects": [
       {
-        "name": "General Aptitude",
-        "strength_level": "weak|moderate|strong",
-        "topics": [
-          {
-            "name": "Verbal Ability",
-            "weightage_percent": 7,
-            "subtopics": [
-              {
-                "name": "Reading comprehension",
-                "prep_time_hours": 0.5
-              },
-              {
-                "name": "Synonyms & antonyms",
-                "prep_time_hours": 0.3
-              }
-            ]
-          },
-          {
-            "name": "Numerical Ability",
-            "weightage_percent": 8,
-            "subtopics": [
-              {
-                "name": "Arithmetic (Percentages, Ratios, Profit-Loss)",
-                "prep_time_hours": 0.5
-              }
-            ]
-          },
-          {
-            "name": "Logical Reasoning",
-            "weightage_percent": 5,
-            "subtopics": [
-              {
-                "name": "Series patterns",
-                "prep_time_hours": 0.4
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "Other Subject Name",
+        "name": "Subject Name",
         "strength_level": "weak|moderate|strong",
         "topics": [
           {
@@ -221,7 +174,6 @@ REQUIRED JSON FORMAT (exact output structure):
             "subtopics": [
               {
                 "name": "Subtopic Name",
-                "prep_time_hours": 2
               }
             ]
           }
@@ -239,14 +191,16 @@ REQUIRED JSON FORMAT (exact output structure):
 }
 
 CRITICAL REQUIREMENTS:
-- Every day MUST include all 3 General Aptitude topics (Verbal Ability, Numerical Ability, Logical Reasoning)
-- General Aptitude time allocation depends on user's strength level (provided above)
-- Each subject should have "strength_level" field based on user's proficiency
-- Include all subtopics from the curriculum for each topic studied that day
-- Total prep_time_hours across all subjects on a day should be 8-10 hours
-- Do not skip any days - generate exactly ${days} days
+- Subjects should be divided across days while maintaining proportional importance
+- If there are really less days to prepare then generate json that can have  multiple subject each day according to importance and weightage and logic
+- If there are enough days(more than no. of subjects) then limit each day with single subject only
+- Subjects must follow importance-based distribution.
+- All chosen topics must list ALL their subtopics.
+- Do not skip any days — generate exactly ${days} days.
+- make sure i want all the data in single message in json format do not generate in batchers or multiple messages.
 
-Generate the complete ${days}-day study plan in the exact JSON format specified above.`;
+Generate the complete ${days}-day study plan directly in JSON format.11`;
+
 
   return prompt;
 }

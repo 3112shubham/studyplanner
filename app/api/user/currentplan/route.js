@@ -104,7 +104,15 @@ export async function GET(request) {
           topics: doc.fields?.topics?.arrayValue?.values?.map(v => v.stringValue) || [],
           hours: parseFloat(doc.fields?.hours?.doubleValue || doc.fields?.hours?.integerValue || 0),
           pyqFocus: doc.fields?.pyqFocus?.stringValue,
-          subtopics: JSON.parse(doc.fields?.subtopics?.stringValue || '[]'),
+          subtopics: (() => {
+            try {
+              const subtopicsStr = doc.fields?.subtopics?.stringValue;
+              return subtopicsStr ? JSON.parse(subtopicsStr) : [];
+            } catch (error) {
+              console.error('Error parsing subtopics for day', doc.fields?.dayNumber?.integerValue, ':', error);
+              return [];
+            }
+          })(),
           completed: doc.fields?.completed?.booleanValue || false,
         }));
 
@@ -117,6 +125,7 @@ export async function GET(request) {
       }
 
       console.log('Successfully fetched plan with', planDays.length, 'days');
+      console.log('First day sample:', planDays[0]);
 
       return NextResponse.json({
         success: true,
