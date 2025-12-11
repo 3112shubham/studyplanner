@@ -1,7 +1,13 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 
 export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
+  // Track which subjects and topics are expanded
+  const [expandedSubjects, setExpandedSubjects] = useState(
+    day?.subtopics?.reduce((acc, _, idx) => ({ ...acc, [idx]: true }), {}) || {}
+  );
+  const [expandedTopics, setExpandedTopics] = useState({});
+
   // The day object has subtopics which is already parsed from JSON
   // subtopics is an array of subjects with their topics and subtopics
   const subjectsData = day?.subtopics;
@@ -87,13 +93,27 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
               className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
             >
               {/* Subject Header */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-l-4 border-blue-500">
+              <div 
+                onClick={() => setExpandedSubjects(prev => ({
+                  ...prev,
+                  [subjectIdx]: !prev[subjectIdx]
+                }))}
+                className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-l-4 border-blue-500 cursor-pointer hover:from-gray-100 hover:to-gray-150 transition-colors"
+              >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">{subject.name}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {subjectCompleted}/{subjectTotal} subtopics completed
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <ChevronDown 
+                      className={`h-5 w-5 text-gray-700 transition-transform ${
+                        expandedSubjects[subjectIdx] ? 'rotate-0' : '-rotate-90'
+                      }`}
+                      strokeWidth={2.5}
+                    />
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{subject.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {subjectCompleted}/{subjectTotal} subtopics completed
+                      </p>
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-blue-600">
@@ -114,70 +134,97 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
               </div>
 
               {/* Topics */}
+              {expandedSubjects[subjectIdx] && (
               <div className="p-6 space-y-4">
-                {subject.topics?.map((topic, topicIdx) => (
-                  <div key={topicIdx} className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
-                        {topicIdx + 1}
-                      </span>
-                      {topic.name}
-                      {topic.weightage_percent && (
-                        <span className="text-xs font-normal bg-blue-100 text-blue-600 px-2 py-1 rounded ml-auto">
-                          {topic.weightage_percent}%
-                        </span>
-                      )}
-                    </h4>
+                {subject.topics?.map((topic, topicIdx) => {
+                  const topicKey = `${subjectIdx}-${topicIdx}`;
+                  const topicCompleted = topic.subtopics?.filter((subtopic, subtopicIdx) => {
+                    const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
+                    return progress[progressKey] === true;
+                  }).length || 0;
+                  const topicTotal = topic.subtopics?.length || 0;
 
-                    {/* Subtopics with Checkboxes */}
-                    <div className="space-y-3 ml-10">
-                      {topic.subtopics?.map((subtopic, subtopicIdx) => {
-                        const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
-                        const isCompleted = progress[progressKey] || false;
+                  return (
+                    <div key={topicIdx} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div 
+                        onClick={() => setExpandedTopics(prev => ({
+                          ...prev,
+                          [topicKey]: !prev[topicKey]
+                        }))}
+                        className="bg-gray-50 p-4 hover:bg-gray-100 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <ChevronDown 
+                            className={`h-4 w-4 text-gray-600 transition-transform ${
+                              expandedTopics[topicKey] ? 'rotate-0' : '-rotate-90'
+                            }`}
+                            strokeWidth={2.5}
+                          />
+                          <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                            {topicIdx + 1}
+                          </span>
+                          <span className="font-semibold text-gray-900">{topic.name}</span>
+                          {topic.weightage_percent && (
+                            <span className="text-xs font-normal bg-blue-100 text-blue-600 px-2 py-1 rounded ml-auto">
+                              {topic.weightage_percent}%
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-600 ml-auto">
+                            {topicCompleted}/{topicTotal}
+                          </span>
+                        </div>
+                      </div>
 
-                        return (
-                          <label
-                            key={subtopicIdx}
-                            className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
-                          >
-                            {/* Custom Checkbox */}
-                            <div className="mt-1">
-                              <input
-                                type="checkbox"
-                                checked={isCompleted}
-                                onChange={(e) =>
-                                  onTopicCheck(
-                                    dayNumber,
-                                    subjectIdx,
-                                    topicIdx,
-                                    subtopicIdx,
-                                    e.target.checked
-                                  )
-                                }
-                                className="sr-only"
-                              />
-                              <div
-                                className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
-                                  isCompleted
-                                    ? 'bg-green-500 border-green-500'
-                                    : 'border-gray-300 group-hover:border-blue-400'
-                                }`}
-                              >
-                                {isCompleted && (
-                                  <Check className="h-4 w-4 text-white" strokeWidth={3} />
-                                )}
+                      {/* Subtopics with Checkboxes */}
+                      {expandedTopics[topicKey] && (
+                      <div className="space-y-3 p-4 ml-6">
+                        {topic.subtopics?.map((subtopic, subtopicIdx) => {
+                          const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
+                          const isCompleted = progress[progressKey] === true;
+
+                          return (
+                            <label
+                              key={subtopicIdx}
+                              className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
+                            >
+                              {/* Custom Checkbox */}
+                              <div className="mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={isCompleted}
+                                  onChange={(e) =>
+                                    onTopicCheck(
+                                      dayNumber,
+                                      subjectIdx,
+                                      topicIdx,
+                                      subtopicIdx,
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="sr-only"
+                                />
+                                <div
+                                  className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                                    isCompleted
+                                      ? 'bg-green-500 border-green-500'
+                                      : 'border-gray-300 group-hover:border-blue-400'
+                                  }`}
+                                >
+                                  {isCompleted && (
+                                    <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                                  )}
+                                </div>
                               </div>
-                            </div>
 
-                            {/* Subtopic Info */}
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className={`text-sm font-medium ${
-                                  isCompleted
-                                    ? 'text-gray-500 line-through'
-                                    : 'text-gray-900'
-                                }`}
-                              >
+                              {/* Subtopic Info */}
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className={`text-sm font-medium ${
+                                    isCompleted
+                                      ? 'text-gray-500 line-through'
+                                      : 'text-gray-900'
+                                  }`}
+                                >
                                 {subtopic.name}
                               </p>
                               {subtopic.prep_time_hours && (
@@ -194,12 +241,15 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
                               </div>
                             )}
                           </label>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+              )}
             </div>
           );
         })}

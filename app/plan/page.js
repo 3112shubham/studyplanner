@@ -26,9 +26,15 @@ export default function PlanPage() {
   useEffect(() => {
     if (user?.uid && authLoading === false) {
       fetchUserPlan();
-      fetchProgress();
     }
   }, [user?.uid, authLoading]);
+
+  // Build progress object whenever plan changes
+  useEffect(() => {
+    if (currentPlan) {
+      fetchProgress();
+    }
+  }, [currentPlan]);
 
   const fetchUserPlan = async () => {
     try {
@@ -75,30 +81,44 @@ export default function PlanPage() {
 
   const fetchProgress = async () => {
     try {
-      const token = localStorage.getItem('firebaseToken');
-      if (!token) return;
-
-      const response = await fetch(`/api/user/progress`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      if (data.success && data.progress) {
-        setProgress(data.progress);
+      // Build progress object from current plan's subtopics
+      const newProgress = {};
+      
+      if (currentPlan && currentPlan.days) {
+        currentPlan.days.forEach((day) => {
+          const dayNumber = day.dayNumber;
+          if (day.subtopics && Array.isArray(day.subtopics)) {
+            day.subtopics.forEach((subject, subjectIdx) => {
+              if (subject.topics && Array.isArray(subject.topics)) {
+                subject.topics.forEach((topic, topicIdx) => {
+                  if (topic.subtopics && Array.isArray(topic.subtopics)) {
+                    topic.subtopics.forEach((subtopic, subtopicIdx) => {
+                      const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
+                      // Check if subtopic is explicitly marked as true
+                      newProgress[progressKey] = subtopic.checked === true;
+                    });
+                  }
+                });
+              }
+            });
+          }
+        });
       }
+      
+      console.log('Rebuilt progress object:', newProgress);
+      setProgress(newProgress);
     } catch (error) {
-      console.error('Error fetching progress:', error);
+      console.error('Error building progress from plan:', error);
     }
   };
 
   const handleTopicCheck = async (dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
     try {
       const token = localStorage.getItem('firebaseToken');
-      if (!token) return;
+      if (!token) {
+        toast.error('No authentication token found');
+        return;
+      }
 
       const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIndex}_subtopic_${subtopicIndex}`;
 
@@ -113,6 +133,7 @@ export default function PlanPage() {
       });
 
       // Send to server
+      console.log('Sending progress update:', { dayNumber, subjectIdx, topicIndex, subtopicIndex, completed: isChecked });
       const response = await fetch(`/api/user/progress`, {
         method: 'POST',
         headers: {
@@ -128,12 +149,13 @@ export default function PlanPage() {
         }),
       });
 
+      console.log('Progress API response status:', response.status, response.ok);
+      
       const data = await response.json();
-      if (data.success) {
-        // After server update, refresh from server to ensure consistency
-        await fetchProgress();
-        
-        // Show success message with progress info
+      console.log('Progress API response data:', data);
+      
+      if (response.ok && data.success) {
+        // Just show success message - local state already updated
         if (data.progress !== undefined) {
           toast.success(`✓ Saved! Overall progress: ${data.progress}%`, {
             duration: 2,
@@ -145,7 +167,8 @@ export default function PlanPage() {
           });
         }
       } else {
-        toast.error('Failed to save progress');
+        console.error('API response was not successful:', data);
+        toast.error(data.error || 'Failed to save progress');
         // Revert local state on error
         setProgress(prev => {
           const updated = { ...prev };
@@ -184,6 +207,35 @@ export default function PlanPage() {
 
   const currentDayPlan = currentPlan.days?.find(day => day.dayNumber === selectedDay);
 
+  // Calculate overall progress across all days
+  let totalAllSubtopics = 0;
+  let completedAllSubtopics = 0;
+
+  if (currentPlan && currentPlan.days) {
+    currentPlan.days.forEach((day) => {
+      const dayNumber = day.dayNumber;
+      if (day.subtopics && Array.isArray(day.subtopics)) {
+        day.subtopics.forEach((subject, subjectIdx) => {
+          if (subject.topics && Array.isArray(subject.topics)) {
+            subject.topics.forEach((topic, topicIdx) => {
+              if (topic.subtopics && Array.isArray(topic.subtopics)) {
+                topic.subtopics.forEach((subtopic, subtopicIdx) => {
+                  totalAllSubtopics++;
+                  const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
+                  if (progress[progressKey] === true) {
+                    completedAllSubtopics++;
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  const overallProgressPercentage = totalAllSubtopics > 0 ? Math.round((completedAllSubtopics / totalAllSubtopics) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
@@ -200,6 +252,18 @@ export default function PlanPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Your Study Plan</h1>
               <p className="text-sm text-gray-600">{currentPlan.duration || 35} day comprehensive study plan</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-3xl font-bold text-blue-600">{overallProgressPercentage}%</div>
+              <p className="text-xs text-gray-600 mt-1">{completedAllSubtopics}/{totalAllSubtopics} completed</p>
+            </div>
+            <div className="w-24 h-24 rounded-full border-4 border-blue-600 flex items-center justify-center bg-white">
+              <div className="text-center">
+                <div className="text-sm font-bold text-gray-900">{overallProgressPercentage}%</div>
+                <div className="text-xs text-gray-600">progress</div>
+              </div>
             </div>
           </div>
         </div>
@@ -262,13 +326,19 @@ export default function PlanPage() {
                               {dayCompletedSubtopics}/{dayTotalSubtopics} subtopics
                             </p>
                           </div>
-                          {dayCompletedSubtopics > 0 && (
+                          {dayCompletedSubtopics > 0 && dayCompletedSubtopics === dayTotalSubtopics ? (
                             <div className={`text-sm font-bold ${
                               selectedDay === dayNumber ? 'text-blue-100' : 'text-green-600'
                             }`}>
                               ✓
                             </div>
-                          )}
+                          ) : dayCompletedSubtopics > 0 ? (
+                            <div className={`text-sm font-bold ${
+                              selectedDay === dayNumber ? 'text-yellow-100' : 'text-yellow-500'
+                            }`}>
+                              ⏳
+                            </div>
+                          ) : null}
                         </div>
                       </button>
                     );

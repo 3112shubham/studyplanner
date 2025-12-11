@@ -105,13 +105,32 @@ export async function GET(request) {
           hours: parseFloat(doc.fields?.hours?.doubleValue || doc.fields?.hours?.integerValue || 0),
           pyqFocus: doc.fields?.pyqFocus?.stringValue,
           subtopics: (() => {
-            try {
-              const subtopicsStr = doc.fields?.subtopics?.stringValue;
-              return subtopicsStr ? JSON.parse(subtopicsStr) : [];
-            } catch (error) {
-              console.error('Error parsing subtopics for day', doc.fields?.dayNumber?.integerValue, ':', error);
-              return [];
-            }
+            // Handle new structured format (array of maps)
+            const subtopicsArray = doc.fields?.subtopics?.arrayValue?.values;
+            if (!subtopicsArray) return [];
+            
+            return subtopicsArray.map(subjectValue => {
+              const subjectFields = subjectValue.mapValue?.fields || {};
+              return {
+                name: subjectFields.name?.stringValue || '',
+                strength_level: subjectFields.strength_level?.stringValue || 'moderate',
+                topics: (subjectFields.topics?.arrayValue?.values || []).map(topicValue => {
+                  const topicFields = topicValue.mapValue?.fields || {};
+                  return {
+                    name: topicFields.name?.stringValue || '',
+                    weightage_percent: topicFields.weightage_percent?.integerValue || 0,
+                    subtopics: (topicFields.subtopics?.arrayValue?.values || []).map(subtopicValue => {
+                      const subtopicFields = subtopicValue.mapValue?.fields || {};
+                      return {
+                        name: subtopicFields.name?.stringValue || '',
+                        checked: subtopicFields.checked?.booleanValue || false,
+                        prep_time_hours: subtopicFields.prep_time_hours?.doubleValue || 0
+                      };
+                    })
+                  };
+                })
+              };
+            });
           })(),
           completed: doc.fields?.completed?.booleanValue || false,
         }));

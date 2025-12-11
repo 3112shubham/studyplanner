@@ -34,29 +34,6 @@ export default function DashboardPage() {
     }
   }, [user?.uid, authLoading]);
 
-  // Refresh progress every 3 seconds when plan exists
-  useEffect(() => {
-    if (currentPlan && user?.uid) {
-      const interval = setInterval(() => {
-        fetchProgressStats();
-      }, 3000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [currentPlan, user?.uid]);
-
-  // Re-fetch plan periodically to get latest stats
-  useEffect(() => {
-    if (currentPlan && user?.uid && authLoading === false) {
-      const interval = setInterval(() => {
-        console.log('Refreshing plan stats...');
-        fetchUserPlan();
-      }, 10000); // Every 10 seconds
-      
-      return () => clearInterval(interval);
-    }
-  }, [currentPlan, user?.uid, authLoading]);
-
   const checkPendingRequest = async () => {
     try {
       const token = localStorage.getItem('firebaseToken');
@@ -137,14 +114,12 @@ export default function DashboardPage() {
   const calculateStats = (plan) => {
     console.log('calculateStats called with plan:', plan);
     
-    // First, fetch the actual progress from the database
-    fetchProgressStats();
-    
-    // Calculate total subtopics from plan structure
+    // Calculate total and completed subtopics from plan structure
     try {
+      let totalSubtopics = 0;
+      let completedSubtopics = 0;
+
       if (plan && plan.days && Array.isArray(plan.days) && plan.days.length > 0) {
-        let totalSubtopics = 0;
-        
         console.log('Processing', plan.days.length, 'days');
         
         plan.days.forEach((day, dayIdx) => {
@@ -155,7 +130,13 @@ export default function DashboardPage() {
                 if (subject && subject.topics && Array.isArray(subject.topics)) {
                   subject.topics.forEach((topic) => {
                     if (topic && topic.subtopics && Array.isArray(topic.subtopics)) {
-                      totalSubtopics += topic.subtopics.length;
+                      topic.subtopics.forEach((subtopic) => {
+                        totalSubtopics++;
+                        // Count as completed if explicitly marked as true
+                        if (subtopic.checked === true) {
+                          completedSubtopics++;
+                        }
+                      });
                     }
                   });
                 }
@@ -166,57 +147,37 @@ export default function DashboardPage() {
           }
         });
 
-        console.log('Final total subtopics:', totalSubtopics);
+        console.log('Final totals - completed:', completedSubtopics, 'total:', totalSubtopics);
         
-        setStats(prev => ({
-          ...prev,
+        const progressPercentage = totalSubtopics > 0 ? Math.round((completedSubtopics / totalSubtopics) * 100) : 0;
+
+        setStats({
+          completedTopics: completedSubtopics,
           totalTopics: totalSubtopics,
-        }));
+          progressPercentage: progressPercentage,
+        });
       } else {
         console.log('Plan has no days or is empty');
-        setStats(prev => ({
-          ...prev,
+        setStats({
+          completedTopics: 0,
           totalTopics: 0,
-        }));
+          progressPercentage: 0,
+        });
       }
     } catch (error) {
       console.error('Error in calculateStats:', error);
-      setStats(prev => ({
-        ...prev,
+      setStats({
+        completedTopics: 0,
         totalTopics: 0,
-      }));
+        progressPercentage: 0,
+      });
     }
   };
 
   const fetchProgressStats = async () => {
-    try {
-      const token = localStorage.getItem('firebaseToken');
-      if (!token) return;
-
-      const response = await fetch(`/api/user/progress`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      if (data.success && data.progress) {
-        // Count completed items from progress object
-        const completedCount = Object.values(data.progress).filter(v => v === true).length;
-        const totalCount = Object.keys(data.progress).filter(key => key.startsWith('day_')).length;
-        const progressPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-        setStats(prev => ({
-          ...prev,
-          completedTopics: completedCount,
-          progressPercentage: progressPercentage,
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching progress stats:', error);
-    }
+    // Progress stats are now calculated directly from the plan in calculateStats
+    // This function is kept for backward compatibility but does nothing
+    console.log('fetchProgressStats called - stats are calculated from plan data');
   };
 
   const handlePlanRequestSubmit = async (planData) => {

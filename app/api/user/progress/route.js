@@ -101,7 +101,10 @@ export async function POST(request) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { dayNumber, subjectIdx, topicIndex, subtopicIndex, completed } = await request.json();
+    const requestBody = await request.json();
+    const { dayNumber, subjectIdx, topicIndex, subtopicIndex, completed } = requestBody;
+
+    console.log('Progress POST received:', { dayNumber, subjectIdx, topicIndex, subtopicIndex, completed });
 
     // Decode token to get userId
     try {
@@ -120,20 +123,15 @@ export async function POST(request) {
         );
       }
 
-      // Create progress key with all indices for unique identification
-      const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIndex}_subtopic_${subtopicIndex}`;
+      console.log('Decoded userId:', userId);
 
-      // Prepare the update data
-      const updateData = {
-        fields: {
-          [progressKey]: { booleanValue: completed },
-          lastUpdated: { timestampValue: new Date().toISOString() }
-        }
-      };
-
-      // First, get the current document
-      const getResponse = await fetch(
-        `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}/progress/studies`,
+      // Get the day document name
+      const dayDocName = `Day_${String(dayNumber).padStart(2, '0')}`;
+      console.log('Fetching day document:', dayDocName);
+      
+      // Fetch the planDay document to get current subtopics structure
+      const dayDocResponse = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}/planDays/${dayDocName}`,
         {
           method: 'GET',
           headers: {
@@ -143,51 +141,124 @@ export async function POST(request) {
         }
       );
 
-      let existingData = {};
-      if (getResponse.ok) {
-        const existingDoc = await getResponse.json();
-        if (existingDoc.fields) {
-          existingData = existingDoc.fields;
-        }
+      if (!dayDocResponse.ok) {
+        console.error('Failed to fetch day document:', dayDocResponse.status);
+        const errorData = await dayDocResponse.json();
+        console.error('Day document fetch error:', errorData);
+        return NextResponse.json(
+          { success: false, error: 'Failed to fetch day document', details: errorData },
+          { status: 400 }
+        );
       }
 
-      // Merge with existing data
-      const mergedData = {
-        ...existingData,
-        [progressKey]: { booleanValue: completed },
-        lastUpdated: { timestampValue: new Date().toISOString() }
-      };
+      const dayDocData = await dayDocResponse.json();
+      const fields = dayDocData.fields || {};
 
-      // Update progress in Firestore
+      console.log('Day document fields keys:', Object.keys(fields));
+
+      // Parse current subtopics array
+      const subtopicsArray = fields.subtopics?.arrayValue?.values || [];
+      console.log('Subtopics array length:', subtopicsArray.length);
+      console.log('Checking indices:', { subjectIdx, topicIndex, subtopicIndex });
+
+      // Update the specific subtopic's checked field
+      if (subtopicsArray[subjectIdx]) {
+        const subjectMap = subtopicsArray[subjectIdx].mapValue?.fields || {};
+        const topicsArray = subjectMap.topics?.arrayValue?.values || [];
+        console.log('Topics array length:', topicsArray.length);
+
+        if (topicsArray[topicIndex]) {
+          const topicMap = topicsArray[topicIndex].mapValue?.fields || {};
+          const subtopicsInTopic = topicMap.subtopics?.arrayValue?.values || [];
+          console.log('Subtopics in topic length:', subtopicsInTopic.length);
+
+          if (subtopicsInTopic[subtopicIndex]) {
+            // Update the checked field
+            console.log(`Updating subtopic[${subjectIdx}][${topicIndex}][${subtopicIndex}] to ${completed}`);
+            subtopicsInTopic[subtopicIndex].mapValue.fields.checked = { booleanValue: completed };
+          } else {
+            console.error(`Subtopic index ${subtopicIndex} not found in topics`);
+          }
+        } else {
+          console.error(`Topic index ${topicIndex} not found in subject`);
+        }
+      } else {
+        console.error(`Subject index ${subjectIdx} not found in subtopics array`);
+      }
+
+      // Update the planDay document with modified subtopics
+      console.log('Sending PATCH request to update day document');
       const updateResponse = await fetch(
-        `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}/progress/studies`,
+        `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}/planDays/${dayDocName}`,
         {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ fields: mergedData }),
+          body: JSON.stringify({
+            fields: {
+              ...fields,
+              subtopics: { arrayValue: { values: subtopicsArray } },
+              updatedAt: { timestampValue: new Date().toISOString() }
+            }
+          }),
         }
       );
 
       if (!updateResponse.ok) {
         const error = await updateResponse.json();
-        console.error('Progress update failed:', error);
+        console.error('Failed to update day document:', updateResponse.status, error);
         return NextResponse.json(
-          { success: false, error: 'Failed to update progress' },
+          { success: false, error: 'Failed to update progress', details: error },
           { status: 500 }
         );
       }
 
-      // Calculate overall progress
-      const completedCount = Object.values(mergedData).filter(field => field.booleanValue === true).length;
-      const totalSubtopics = Object.keys(mergedData).filter(key => key.startsWith('day_')).length;
-      const overallProgress = totalSubtopics > 0 ? Math.round((completedCount / totalSubtopics) * 100) : 0;
+      const updateResponseData = await updateResponse.json();
+      console.log(`Updated ${dayDocName} subtopic[${subjectIdx}][${topicIndex}][${subtopicIndex}] to ${completed}`);
+      console.log('Update response:', updateResponseData);
 
-      // Update user's overall progress in the main user document
+      // Now calculate overall progress across all days
+      const allDaysResponse = await fetch(
+        `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}/planDays?pageSize=100`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      let totalSubtopics = 0;
+      let completedSubtopics = 0;
+
+      if (allDaysResponse.ok) {
+        const allDaysData = await allDaysResponse.json();
+        const dayDocuments = allDaysData.documents || [];
+
+        dayDocuments.forEach(dayDoc => {
+          const daySubtopics = dayDoc.fields?.subtopics?.arrayValue?.values || [];
+          daySubtopics.forEach(subjectValue => {
+            const topics = subjectValue.mapValue?.fields?.topics?.arrayValue?.values || [];
+            topics.forEach(topicValue => {
+              const subtopics = topicValue.mapValue?.fields?.subtopics?.arrayValue?.values || [];
+              subtopics.forEach(subtopicValue => {
+                totalSubtopics++;
+                if (subtopicValue.mapValue?.fields?.checked?.booleanValue === true) {
+                  completedSubtopics++;
+                }
+              });
+            });
+          });
+        });
+      }
+
+      const overallProgress = totalSubtopics > 0 ? Math.round((completedSubtopics / totalSubtopics) * 100) : 0;
+
+      // Update user document with overall progress stats
       try {
-        // First, fetch the existing user document to preserve all fields
         const existingUserResponse = await fetch(
           `https://firestore.googleapis.com/v1/projects/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${userId}`,
           {
@@ -219,7 +290,7 @@ export async function POST(request) {
               fields: {
                 ...existingUserFields, // Include all existing fields
                 progressPercentage: { integerValue: overallProgress },
-                completedSubtopics: { integerValue: completedCount },
+                completedSubtopics: { integerValue: completedSubtopics },
                 lastProgressUpdate: { timestampValue: new Date().toISOString() }
               }
             }),
@@ -231,11 +302,16 @@ export async function POST(request) {
         }
       } catch (error) {
         console.error('Error updating user progress:', error);
-        // Don't fail the request if user doc update fails
       }
 
       return NextResponse.json(
-        { success: true, message: 'Progress updated', progress: overallProgress, completed: completedCount, total: totalSubtopics },
+        { 
+          success: true, 
+          message: 'Progress updated', 
+          progress: overallProgress, 
+          completed: completedSubtopics, 
+          total: totalSubtopics 
+        },
         { status: 200 }
       );
     } catch (error) {

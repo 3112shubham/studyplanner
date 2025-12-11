@@ -270,6 +270,61 @@ function extractDayDetails(planData) {
   return dayDetails;
 }
 
+// Convert subtopics to Firestore nested array/map structure
+function convertSubtopicsToFirestore(subtopics) {
+  if (!Array.isArray(subtopics)) {
+    return { arrayValue: { values: [] } };
+  }
+
+  const values = subtopics.map(subject => {
+    const fields = {
+      name: { stringValue: subject.name || '' },
+    };
+
+    if (subject.strength_level) {
+      fields.strength_level = { stringValue: subject.strength_level };
+    }
+
+    if (subject.topics && Array.isArray(subject.topics)) {
+      fields.topics = {
+        arrayValue: {
+          values: subject.topics.map(topic => {
+            const topicFields = {
+              name: { stringValue: topic.name || '' },
+            };
+
+            if (topic.weightage_percent) {
+              topicFields.weightage_percent = { integerValue: topic.weightage_percent };
+            }
+
+            if (topic.subtopics && Array.isArray(topic.subtopics)) {
+              topicFields.subtopics = {
+                arrayValue: {
+                  values: topic.subtopics.map(subtopic => ({
+                    mapValue: {
+                      fields: {
+                        name: { stringValue: subtopic.name || '' },
+                        checked: { booleanValue: false }, // Default to unchecked
+                        ...(subtopic.prep_time_hours && { prep_time_hours: { doubleValue: subtopic.prep_time_hours } })
+                      }
+                    }
+                  }))
+                }
+              };
+            }
+
+            return { mapValue: { fields: topicFields } };
+          })
+        }
+      };
+    }
+
+    return { mapValue: { fields } };
+  });
+
+  return { arrayValue: { values } };
+}
+
 // Create day subcollections in users document
 async function createDaySubcollections(userId, planDocId, dayDetails, token) {
   try {
@@ -296,7 +351,7 @@ async function createDaySubcollections(userId, planDocId, dayDetails, token) {
               topics: { arrayValue: { values: (dayData.topics || []).map(t => ({ stringValue: String(t) })) } },
               hours: { doubleValue: parseFloat(dayData.hours) || 0 },
               pyqFocus: { stringValue: dayData.pyqFocus || '' },
-              subtopics: { stringValue: JSON.stringify(dayData.subtopics || []) },
+              subtopics: convertSubtopicsToFirestore(dayData.subtopics),
               completed: { booleanValue: dayData.completed || false },
               createdAt: { timestampValue: new Date().toISOString() },
             },

@@ -161,6 +161,10 @@ INSTRUCTIONS:
    - Include all subtopics for the topic chosen on a given day.
 
 REQUIRED JSON FORMAT (exact output structure):
+
+
+
+
 {
   "day1": {
     "subjects": [
