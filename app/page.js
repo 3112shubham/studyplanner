@@ -41,24 +41,29 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       {/* Hero Section */}
-      <section className="gradient-bg text-white py-20">
+      <section className="bg-gradient-to-br from-blue-600 to-blue-700 text-white py-24">
         <div className="container mx-auto px-4 text-center">
+          {user && userData?.name && (
+            <p className="text-blue-100 text-lg mb-4 font-semibold">
+              Welcome back, <span className="text-yellow-200">{userData.name}</span>! 👋
+            </p>
+          )}
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Master GATE CS in{' '}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 to-pink-300">
+            Master GATE CS in {' '}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 to-orange-200">
               35 Days
             </span>
           </h1>
-          <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
+          <p className="text-xl mb-8 max-w-2xl mx-auto text-blue-100">
             Personalized study plans, progress tracking, and expert guidance to ace GATE Computer Science
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {user ? (
               <Link
-                href="/user/dashboard"
-                className="bg-white text-primary-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                href="/dashboard"
+                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-lg hover:shadow-xl"
               >
                 Go to Dashboard
               </Link>
@@ -66,13 +71,13 @@ export default function Home() {
               <>
                 <Link
                   href="/login"
-                  className="bg-white text-primary-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                  className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-lg hover:shadow-xl"
                 >
                   Get Started
                 </Link>
                 <Link
                   href="/register"
-                  className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors"
+                  className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/20 transition-colors"
                 >
                   Create Account
                 </Link>
@@ -85,22 +90,25 @@ export default function Home() {
       {/* Features Section */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-12 text-gray-800">
+          <h2 className="text-4xl font-bold text-center mb-4 text-gray-900">
             Why Choose Our Platform?
           </h2>
+          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+            Everything you need for a successful GATE preparation
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="glass-card p-6 rounded-2xl shadow-soft transition-transform hover:scale-105"
+                className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-slate-50 border-2 border-blue-100 hover:border-blue-300 shadow-md transition-all hover:shadow-lg hover:-translate-y-1"
               >
-                <div className="text-primary-500 mb-4">
+                <div className="text-blue-600 mb-4 p-3 bg-blue-100 rounded-lg w-fit">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-800">
+                <h3 className="text-xl font-bold mb-3 text-gray-900">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-700 leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -110,39 +118,42 @@ export default function Home() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gradient-to-br from-blue-50 to-slate-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-12 text-gray-800">
+          <h2 className="text-4xl font-bold text-center mb-4 text-gray-900">
             How It Works
           </h2>
+          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+            Four simple steps to start your GATE preparation journey
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary-600">1</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <span className="text-2xl font-bold text-white">1</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Sign Up</h3>
-              <p className="text-gray-600">Create your account</p>
+              <h3 className="text-xl font-bold mb-2 text-gray-900">Sign Up</h3>
+              <p className="text-gray-700">Create your free account in seconds</p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary-600">2</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <span className="text-2xl font-bold text-white">2</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Select Topics</h3>
-              <p className="text-gray-600">Mark topics as strong/moderate/weak</p>
+              <h3 className="text-xl font-bold mb-2 text-gray-900">Select Topics</h3>
+              <p className="text-gray-700">Mark topics as strong, moderate, or weak</p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary-600">3</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <span className="text-2xl font-bold text-white">3</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Get Plan</h3>
-              <p className="text-gray-600">Receive personalized study plan</p>
+              <h3 className="text-xl font-bold mb-2 text-gray-900">Get Plan</h3>
+              <p className="text-gray-700">Receive your personalized 35-day plan</p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary-600">4</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <span className="text-2xl font-bold text-white">4</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Track Progress</h3>
-              <p className="text-gray-600">Monitor daily progress and adjust</p>
+              <h3 className="text-xl font-bold mb-2 text-gray-900">Track Progress</h3>
+              <p className="text-gray-700">Monitor daily progress and stay on track</p>
             </div>
           </div>
         </div>

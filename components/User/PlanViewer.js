@@ -53,7 +53,7 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
             <p className="text-blue-100">
               {day.title || `Study Day`}
             </p>
-            <p className="text-sm text-blue-100 mt-2">{subjectsCount} subjects • {day.hours} hours</p>
+            <p className="text-sm text-blue-100 mt-2">{subjectsCount} subjects • {subjectsData?.reduce((acc, sub) => acc + (sub.topics?.reduce((t, topic) => t + (topic.subtopics?.length || 0), 0) || 0), 0) || 0} subtopics</p>
           </div>
           <div className="text-right">
             <div className="text-5xl font-bold mb-2">{dayProgress}%</div>
@@ -164,11 +164,6 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
                             {topicIdx + 1}
                           </span>
                           <span className="font-semibold text-gray-900">{topic.name}</span>
-                          {topic.weightage_percent && (
-                            <span className="text-xs font-normal bg-blue-100 text-blue-600 px-2 py-1 rounded ml-auto">
-                              {topic.weightage_percent}%
-                            </span>
-                          )}
                           <span className="text-xs text-gray-600 ml-auto">
                             {topicCompleted}/{topicTotal}
                           </span>
@@ -188,7 +183,7 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
                               className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
                             >
                               {/* Custom Checkbox */}
-                              <div className="mt-1">
+                              <div className="">
                                 <input
                                   type="checkbox"
                                   checked={isCompleted}
@@ -227,11 +222,6 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
                                 >
                                 {subtopic.name}
                               </p>
-                              {subtopic.prep_time_hours && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  ⏱️ {subtopic.prep_time_hours} hours
-                                </p>
-                              )}
                             </div>
 
                             {/* Status Badge */}
@@ -262,14 +252,6 @@ export default function PlanViewer({ day, dayNumber, progress, onTopicCheck }) {
           <p className="text-2xl font-bold text-blue-600 mt-2">
             {subjectsData?.reduce((acc, sub) => 
               acc + (sub.topics?.reduce((t, topic) => t + (topic.subtopics?.length || 0), 0) || 0), 0) || 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-          <p className="text-gray-600 text-sm font-medium">Total Hours</p>
-          <p className="text-2xl font-bold text-purple-600 mt-2">
-            {day.hours || subjectsData?.reduce((acc, sub) => 
-              acc + (sub.topics?.reduce((t, topic) => 
-                t + (topic.subtopics?.reduce((s, sub) => s + (sub.prep_time_hours || 0), 0) || 0), 0) || 0), 0) || 0}
           </p>
         </div>
         <div className="bg-white rounded-lg p-4 text-center shadow-sm">

@@ -238,48 +238,27 @@ export default function PlanPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Back to Dashboard"
-            >
-              <ChevronLeft className="h-6 w-6 text-gray-700" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Your Study Plan</h1>
-              <p className="text-sm text-gray-600">{currentPlan.duration || 35} day comprehensive study plan</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-3xl font-bold text-blue-600">{overallProgressPercentage}%</div>
-              <p className="text-xs text-gray-600 mt-1">{completedAllSubtopics}/{totalAllSubtopics} completed</p>
-            </div>
-            <div className="w-24 h-24 rounded-full border-4 border-blue-600 flex items-center justify-center bg-white">
-              <div className="text-center">
-                <div className="text-sm font-bold text-gray-900">{overallProgressPercentage}%</div>
-                <div className="text-xs text-gray-600">progress</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Floating Back Button */}
+      <button
+        onClick={() => router.push('/dashboard')}
+        className="fixed top-20 left-4 z-40 flex items-center justify-center w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all"
+        aria-label="Go back to dashboard"
+        title="Back to Dashboard"
+      >
+        <ChevronLeft size={20} />
+      </button>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Side Panel - Day Selector */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-md sticky top-24">
+            <div className="bg-white rounded-xl shadow-md sticky top-8 h-[calc(100vh-6rem)]">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-lg font-bold text-gray-900">📅 Select Day</h2>
                 <p className="text-sm text-gray-600 mt-1">Total: {currentPlan.days?.length || 35} days</p>
               </div>
 
-              <div className="p-4 max-h-[70vh] overflow-y-auto">
+              <div className="p-4 max-h-[calc(100vh-14rem)] overflow-y-auto">
                 <div className="space-y-2">
                   {currentPlan.days?.map((day, index) => {
                     const dayNumber = day.dayNumber || (index + 1);
@@ -307,34 +286,47 @@ export default function PlanPage() {
                       });
                     }
 
+                    const dayProgressPercentage = dayTotalSubtopics > 0 ? Math.round((dayCompletedSubtopics / dayTotalSubtopics) * 100) : 0;
+
                     return (
                       <button
                         key={dayNumber}
                         onClick={() => setSelectedDay(dayNumber)}
-                        className={`w-full p-3 rounded-lg transition-all text-left ${
+                        className={`w-full p-3 rounded-lg transition-all text-left relative overflow-hidden group border-2 ${
                           selectedDay === dayNumber
-                            ? 'bg-blue-600 text-white shadow-lg'
-                            : 'bg-gray-50 hover:bg-gray-100 text-gray-900'
+                            ? 'bg-white text-blue-600 border-blue-600 shadow-lg'
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-900 border-gray-200'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        {/* Progress Background Fill */}
+                        <div
+                          className={`absolute inset-0 transition-all duration-500 ${
+                            selectedDay === dayNumber
+                              ? 'bg-blue-100'
+                              : 'bg-blue-300'
+                          }`}
+                          style={{ width: `${dayProgressPercentage}%` }}
+                        ></div>
+
+                        {/* Content */}
+                        <div className="relative flex items-center justify-between">
                           <div>
                             <p className="font-semibold">Day {dayNumber}</p>
                             <p className={`text-xs ${
-                              selectedDay === dayNumber ? 'text-blue-100' : 'text-gray-600'
+                              selectedDay === dayNumber ? 'text-blue-500' : 'text-gray-600'
                             }`}>
                               {dayCompletedSubtopics}/{dayTotalSubtopics} subtopics
                             </p>
                           </div>
                           {dayCompletedSubtopics > 0 && dayCompletedSubtopics === dayTotalSubtopics ? (
                             <div className={`text-sm font-bold ${
-                              selectedDay === dayNumber ? 'text-blue-100' : 'text-green-600'
+                              selectedDay === dayNumber ? 'text-green-600' : 'text-green-600'
                             }`}>
                               ✓
                             </div>
                           ) : dayCompletedSubtopics > 0 ? (
                             <div className={`text-sm font-bold ${
-                              selectedDay === dayNumber ? 'text-yellow-100' : 'text-yellow-500'
+                              selectedDay === dayNumber ? 'text-yellow-600' : 'text-yellow-500'
                             }`}>
                               ⏳
                             </div>

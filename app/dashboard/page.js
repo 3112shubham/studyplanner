@@ -253,173 +253,138 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Welcome Section */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            Welcome, {userData?.name || 'User'}! 👋
+        {/* Welcome Header */}
+        <div className="mb-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg">
+          <h1 className="text-4xl md:text-5xl font-bold mb-2">
+            Welcome back👋
           </h1>
-          <p className="text-lg text-gray-600">
-            Your GATE CSE Study Dashboard
+          <p className="text-blue-100 text-lg">
+            Your personalized GATE CSE study journey
           </p>
         </div>
 
-        {/* Debug Info - Remove in production */}
-        {currentPlan && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
-            <details className="cursor-pointer">
-              <summary className="font-semibold text-yellow-900">Debug Info (Click to expand)</summary>
-              <div className="mt-4 bg-black text-green-400 p-4 rounded font-mono text-xs overflow-auto max-h-96">
-                <div>Plan ID: {currentPlan.planId}</div>
-                <div>Total Days: {currentPlan.days?.length || 0}</div>
-                <div>Duration: {currentPlan.duration}</div>
-                {currentPlan.days?.[0] && (
-                  <>
-                    <div className="mt-2 border-t border-green-400 pt-2">First Day:</div>
-                    <div>Day Number: {currentPlan.days[0].dayNumber}</div>
-                    <div>Title: {currentPlan.days[0].title}</div>
-                    <div>Subtopics Count: {currentPlan.days[0].subtopics?.length || 0}</div>
-                    <div>Subtopics Type: {typeof currentPlan.days[0].subtopics}</div>
-                    <div>Subtopics Sample: {JSON.stringify(currentPlan.days[0].subtopics?.slice(0, 1), null, 2)}</div>
-                  </>
-                )}
-              </div>
-            </details>
-          </div>
-        )}
-
         {/* Stats Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {/* Overall Progress Card */}
-          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                Overall Progress
-              </h2>
-              <div className="text-2xl">📊</div>
+          <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-8 border-t-4 border-blue-500 group">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Overall Progress
+                </p>
+                <p className="text-5xl font-bold text-blue-600">
+                  {stats.progressPercentage}%
+                </p>
+              </div>
+              <div className="text-5xl group-hover:scale-110 transition-transform">📊</div>
             </div>
-            <p className="text-4xl font-bold text-blue-600 mb-3">
-              {stats.progressPercentage}%
-            </p>
-            <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
               <div
-                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-700"
                 style={{ width: `${stats.progressPercentage}%` }}
               ></div>
             </div>
-            <p className="text-xs text-gray-600">
-              {stats.completedTopics} of {stats.totalTopics} topics completed
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-900">{stats.completedTopics}</span> of <span className="font-semibold text-gray-900">{stats.totalTopics}</span> topics completed
             </p>
           </div>
 
           {/* Plan Status Card */}
-          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-emerald-500">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                Plan Status
-              </h2>
-              <div className="text-2xl">
+          <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-8 border-t-4 border-green-500 group">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Plan Status
+                </p>
+                <p className="text-3xl font-bold mb-2" style={{
+                  color: currentPlan ? '#059669' : pendingRequest ? '#d97706' : '#6b7280'
+                }}>
+                  {currentPlan ? 'Active' : pendingRequest ? 'Pending' : 'No Plan'}
+                </p>
+              </div>
+              <div className="text-5xl group-hover:scale-110 transition-transform">
                 {currentPlan ? '✅' : pendingRequest ? '⏳' : '❌'}
               </div>
             </div>
-            <p className="text-2xl font-bold mb-2" style={{
-              color: currentPlan ? '#10b981' : pendingRequest ? '#f59e0b' : '#6b7280'
-            }}>
-              {currentPlan ? 'Active' : pendingRequest ? 'Pending' : 'No Plan'}
-            </p>
             <p className="text-sm text-gray-600">
               {currentPlan 
-                ? `${currentPlan.duration || 35}-day plan` 
+                ? `${currentPlan.duration || 35}-day study plan active` 
                 : pendingRequest 
-                  ? 'Review in progress'
-                  : 'Request to get started'}
+                  ? 'Your plan is being created'
+                  : 'Request a plan to begin'}
             </p>
           </div>
 
           {/* Total Topics Card */}
-          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                Total Topics
-              </h2>
-              <div className="text-2xl">📚</div>
+          <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-8 border-t-4 border-purple-500 group">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Total Topics
+                </p>
+                <p className="text-5xl font-bold text-purple-600">
+                  {stats.totalTopics}
+                </p>
+              </div>
+              <div className="text-5xl group-hover:scale-110 transition-transform">📚</div>
             </div>
-            <p className="text-4xl font-bold text-purple-600 mb-3">
-              {stats.totalTopics}
-            </p>
             <p className="text-sm text-gray-600">
-              Topics to cover
+              Topics to master in your plan
             </p>
-          </div>
-
-          {/* Actions Card */}
-          <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border-l-4 border-orange-500">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                Actions
-              </h2>
-              <div className="text-2xl">⚡</div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => currentPlan ? router.push('/plan') : setShowPlanModal(true)}
-                className={`w-full font-semibold py-3 px-4 rounded-lg transition-all duration-200 ${
-                  currentPlan
-                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:shadow-lg'
-                    : pendingRequest
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg'
-                }`}
-                disabled={pendingRequest && !currentPlan}
-              >
-                {currentPlan ? 'View Your Plan' : pendingRequest ? 'Pending...' : 'Request Plan'}
-              </button>
-              
-              {(currentPlan || pendingRequest) && (
-                <button
-                  onClick={fetchUserPlan}
-                  disabled={planLoading}
-                  className="w-full font-semibold py-2 px-4 rounded-lg transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm flex items-center justify-center gap-2"
-                >
-                  {planLoading ? '⏳ Refreshing...' : '🔄 Refresh'}
-                </button>
-              )}
-            </div>
           </div>
         </div>
 
-        {/* Empty State */}
+        {/* Action Button Section */}
+        <div className="mb-12">
+          <button
+            onClick={() => currentPlan ? router.push('/plan') : setShowPlanModal(true)}
+            disabled={pendingRequest && !currentPlan}
+            className={`w-full font-bold py-4 px-6 rounded-2xl text-lg transition-all duration-300 shadow-lg hover:shadow-2xl transform hover:-translate-y-1 ${
+              currentPlan
+                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700'
+                : pendingRequest
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
+            }`}
+          >
+            {currentPlan ? '🚀 View Your Study Plan' : pendingRequest ? '⏳ Plan Being Created...' : '📋 Request Your Plan'}
+          </button>
+        </div>
+
+        {/* Empty State - No Plan */}
         {!currentPlan && !planLoading && !pendingRequest && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-12 text-center">
-            <div className="text-6xl mb-4">🎯</div>
-            <h3 className="text-2xl font-bold text-blue-900 mb-3">
-              Get Your Personalized Study Plan
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-12 text-center text-white shadow-2xl">
+            <div className="text-7xl mb-6">🎯</div>
+            <h3 className="text-3xl font-bold mb-4">
+              Start Your GATE Journey
             </h3>
-            <p className="text-blue-700 mb-6 max-w-2xl mx-auto">
-              Request a customized 35-day GATE CSE study plan tailored to your strength levels and learning pace.
+            <p className="text-blue-100 mb-8 max-w-2xl mx-auto text-lg leading-relaxed">
+              Request a customized 35-day GATE CSE study plan tailored to your strengths and weaknesses. Our AI analyzes your profile and creates the perfect roadmap to success.
             </p>
             <button
               onClick={() => setShowPlanModal(true)}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-8 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+              className="bg-white text-blue-600 font-bold py-3 px-8 rounded-xl hover:bg-blue-50 transition-all duration-300 shadow-lg hover:shadow-xl text-lg"
             >
-              Request a Plan Now
+              Create Your Plan Now
             </button>
           </div>
         )}
 
+        {/* Pending State */}
         {pendingRequest && !currentPlan && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-12 text-center">
-            <div className="text-6xl mb-4">⏳</div>
-            <h3 className="text-2xl font-bold text-amber-900 mb-3">
+          <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl p-12 text-center text-white shadow-2xl">
+            <div className="text-7xl mb-6 animate-bounce">⏳</div>
+            <h3 className="text-3xl font-bold mb-4">
               Your Plan is Being Created
             </h3>
-            <p className="text-amber-700 mb-3">
-              Our team is working on your personalized study plan. We'll notify you once it's ready!
+            <p className="text-amber-100 mb-6 text-lg">
+              Our team is crafting your personalized study schedule. We'll notify you as soon as it's ready!
             </p>
-            <p className="text-sm text-amber-600">
-              Status: {pendingRequest}
-            </p>
+            <div className="inline-block bg-white/20 rounded-full px-6 py-2">
+              <p className="text-sm font-semibold">Status: <span className="text-white">{pendingRequest}</span></p>
+            </div>
           </div>
         )}
       </div>

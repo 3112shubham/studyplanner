@@ -17,7 +17,7 @@ export default function Navbar() {
     ...(user
       ? [
           { name: 'Dashboard', href: '/dashboard' },
-          { name: 'Progress', href: '/progress' },
+          { name: 'Study', href: '/plan' },
         ]
       : []),
   ];
