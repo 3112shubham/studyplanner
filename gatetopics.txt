@@ -1,0 +1,544 @@
+You are an expert GATE (Graduate Aptitude Test for Engineering) study planner. Generate a comprehensive, day-wise study plan in JSON format.
+
+TOTAL PREPARATION DAYS: 11
+
+SUBJECT-WISE BREAKDOWN (with importance, user's strength level, and topics):
+
+{
+  "General Aptitude": {
+    "importance_percent": 15,
+    "strength_level": "moderate",
+    "topics": {
+      "Verbal Ability": {
+        "weightage_percent": 7,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Reading comprehension",
+          "Synonyms & antonyms",
+          "Sentence completion",
+          "Para jumbles",
+          "Grammar & error spotting"
+        ]
+      },
+      "Numerical Ability": {
+        "weightage_percent": 8,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Arithmetic (Percentages, Ratios, Profit-Loss)",
+          "Numbers & Number systems",
+          "HCF/LCM",
+          "Time, Speed & Distance",
+          "Average, Mixture-Alligation",
+          "Simple & Compound Interest"
+        ]
+      },
+      "Logical Reasoning": {
+        "weightage_percent": 5,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Series patterns",
+          "Directions",
+          "Blood relations",
+          "Data interpretation",
+          "Logical puzzles"
+        ]
+      }
+    }
+  },
+  "Engineering Mathematics": {
+    "importance_percent": 13,
+    "strength_level": "moderate",
+    "topics": {
+      "Linear Algebra": {
+        "weightage_percent": 4,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Matrices & types",
+          "Determinants",
+          "Rank & inverse",
+          "System of linear equations",
+          "Eigenvalues & eigenvectors",
+          "LU decomposition"
+        ]
+      },
+      "Calculus": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Limits & continuity",
+          "Differentiability",
+          "Maxima & minima",
+          "Mean value theorem",
+          "Definite & indefinite integration"
+        ]
+      },
+      "Probability & Statistics": {
+        "weightage_percent": 4,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Random variables",
+          "Distributions (normal, binomial, Poisson, uniform, exponential)",
+          "Mean, median, mode",
+          "Variance & standard deviation",
+          "Conditional probability",
+          "Bayes theorem"
+        ]
+      },
+      "Discrete Mathematics": {
+        "weightage_percent": 6,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Propositional & first-order logic",
+          "Sets, relations & functions",
+          "Partial orders & lattices",
+          "Groups & monoids",
+          "Graph theory (connectivity, matching, coloring)",
+          "Combinatorics (counting, permutations, combinations)",
+          "Recurrence relations",
+          "Generating functions"
+        ]
+      }
+    }
+  },
+  "Digital Logic": {
+    "importance_percent": 6,
+    "strength_level": "moderate",
+    "topics": {
+      "Boolean Algebra": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Laws of Boolean algebra",
+          "Canonical forms",
+          "Karnaugh maps (K-maps)"
+        ]
+      },
+      "Combinational Circuits": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Adders, subtractors",
+          "Multiplexers, demultiplexers",
+          "Encoders, decoders",
+          "Comparators"
+        ]
+      },
+      "Sequential Circuits": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Flip-flops (SR, JK, D, T)",
+          "Registers & counters",
+          "State diagrams",
+          "Clocking & timing"
+        ]
+      }
+    }
+  },
+  "Computer Organization & Architecture": {
+    "importance_percent": 8,
+    "strength_level": "moderate",
+    "topics": {
+      "Machine Instructions": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Instruction formats",
+          "Addressing modes",
+          "Assembly basics"
+        ]
+      },
+      "Pipelining": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Pipeline stages",
+          "Data hazards",
+          "Control hazards",
+          "Structural hazards"
+        ]
+      },
+      "Memory Hierarchy": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Cache mapping (direct, associative, set-associative)",
+          "Cache hit/miss",
+          "Main memory",
+          "Virtual memory"
+        ]
+      }
+    }
+  },
+  "Programming & Data Structures": {
+    "importance_percent": 10,
+    "strength_level": "moderate",
+    "topics": {
+      "C Programming": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Pointers",
+          "Arrays & strings",
+          "Functions",
+          "Structures",
+          "Recursion"
+        ]
+      },
+      "Data Structures": {
+        "weightage_percent": 4,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Arrays & linked lists",
+          "Stacks & queues",
+          "Trees & binary search trees",
+          "Heaps",
+          "Graphs (representation)"
+        ]
+      },
+      "Complexity Basics": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Time complexity",
+          "Space complexity",
+          "Best/worst/average cases"
+        ]
+      }
+    }
+  },
+  "Algorithms": {
+    "importance_percent": 10,
+    "strength_level": "moderate",
+    "topics": {
+      "Sorting & Searching": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Merge sort",
+          "Quick sort",
+          "Heap sort",
+          "Binary search"
+        ]
+      },
+      "Graph Algorithms": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "BFS & DFS",
+          "Minimum spanning trees (Kruskal, Prim)",
+          "Shortest paths (Dijkstra, Bellman-Ford)"
+        ]
+      },
+      "Algorithm Techniques": {
+        "weightage_percent": 4,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Greedy",
+          "Dynamic programming",
+          "Divide & conquer",
+          "Backtracking"
+        ]
+      }
+    }
+  },
+  "Theory of Computation": {
+    "importance_percent": 7,
+    "strength_level": "moderate",
+    "topics": {
+      "Regular Languages & Automata": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Finite automata (DFA, NFA)",
+          "Regular expressions",
+          "Pumping lemma"
+        ]
+      },
+      "Context-Free Languages": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "CFG",
+          "Parse trees",
+          "Pushdown automata (PDA)"
+        ]
+      },
+      "Turing Machines": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Decidability",
+          "Undecidability",
+          "Reductions"
+        ]
+      }
+    }
+  },
+  "Compiler Design": {
+    "importance_percent": 5,
+    "strength_level": "moderate",
+    "topics": {
+      "Lexical Analysis": {
+        "weightage_percent": 1,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Tokenization",
+          "Lexemes",
+          "Finite automata behind lexers"
+        ]
+      },
+      "Parsing": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "LL & LR parsing",
+          "Parse trees",
+          "Shift-reduce parsing"
+        ]
+      },
+      "Code Generation & Optimization": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Intermediate code",
+          "Basic blocks",
+          "Data flow analysis",
+          "Constant propagation"
+        ]
+      }
+    }
+  },
+  "Operating Systems": {
+    "importance_percent": 9,
+    "strength_level": "moderate",
+    "topics": {
+      "Processes & Threads": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "PCB",
+          "Context switching",
+          "Multithreading"
+        ]
+      },
+      "Scheduling": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "FCFS",
+          "SJF",
+          "Round Robin",
+          "Priority scheduling"
+        ]
+      },
+      "Concurrency": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Semaphores",
+          "Monitors",
+          "Deadlock conditions",
+          "Banker's algorithm"
+        ]
+      },
+      "Memory Management": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Paging & segmentation",
+          "Page replacement (LRU, FIFO, Optimal)"
+        ]
+      }
+    }
+  },
+  "Databases": {
+    "importance_percent": 8,
+    "strength_level": "moderate",
+    "topics": {
+      "ER Model": {
+        "weightage_percent": 1,
+        "strength_level": "moderate",
+        "subtopics": [
+          "ER diagrams",
+          "Keys",
+          "Relationships"
+        ]
+      },
+      "Relational Algebra & SQL": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Selection & projection",
+          "Joins",
+          "Nested queries",
+          "Aggregation"
+        ]
+      },
+      "Normalization": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Functional dependencies",
+          "1NF → BCNF"
+        ]
+      },
+      "Transactions": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "ACID",
+          "Serializability",
+          "Conflict graphs",
+          "Concurrency control"
+        ]
+      }
+    }
+  },
+  "Computer Networks": {
+    "importance_percent": 10,
+    "strength_level": "moderate",
+    "topics": {
+      "Network Layers": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "OSI",
+          "TCP/IP",
+          "Encapsulation"
+        ]
+      },
+      "IP Addressing": {
+        "weightage_percent": 3,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Subnetting",
+          "CIDR",
+          "IPv4 fragmentation"
+        ]
+      },
+      "Routing": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "Link state",
+          "Distance vector",
+          "Dijkstra"
+        ]
+      },
+      "Transport Layer": {
+        "weightage_percent": 2,
+        "strength_level": "moderate",
+        "subtopics": [
+          "TCP",
+          "UDP",
+          "Flow control",
+          "Congestion control"
+        ]
+      }
+    }
+  }
+}
+
+INSTRUCTIONS:
+1. Create a detailed 11-day study plan
+2. IMPORTANT: Include General Aptitude (all 3 topics: Verbal Ability, Numerical Ability, Logical Reasoning) in EVERY SINGLE DAY
+3. General Aptitude daily prep_time_hours should be allocated based on user's strength level:
+   * For WEAK strength: 1.5-2 hours per day
+   * For MODERATE strength: 1-1.5 hours per day
+   * For STRONG strength: 0.5-1 hour per day
+
+4. For remaining time each day (after General Aptitude):
+   - Cover other subjects based on their importance percentages
+   - Allocate prep_time_hours for each subtopic based on its weightage and user's strength level:
+     * For WEAK strength: More time (2-3 hours per subtopic)
+     * For MODERATE strength: Balanced time (1.5-2 hours per subtopic)
+     * For STRONG strength: Less time, focus on revision (0.5-1 hour per subtopic)
+   - Total prep_time_hours per day should be 8-10 hours
+
+5. Allocation strategy:
+   - General Aptitude: MANDATORY EVERY DAY with strength-based time allocation
+   - Balance other subjects based on importance
+   - Allocate more time for weak subjects
+   - Include mock tests periodically
+
+REQUIRED JSON FORMAT (exact output structure):
+{
+  "day1": {
+    "subjects": [
+      {
+        "name": "General Aptitude",
+        "strength_level": "weak|moderate|strong",
+        "topics": [
+          {
+            "name": "Verbal Ability",
+            "weightage_percent": 7,
+            "subtopics": [
+              {
+                "name": "Reading comprehension",
+                "prep_time_hours": 0.5
+              },
+              {
+                "name": "Synonyms & antonyms",
+                "prep_time_hours": 0.3
+              }
+            ]
+          },
+          {
+            "name": "Numerical Ability",
+            "weightage_percent": 8,
+            "subtopics": [
+              {
+                "name": "Arithmetic (Percentages, Ratios, Profit-Loss)",
+                "prep_time_hours": 0.5
+              }
+            ]
+          },
+          {
+            "name": "Logical Reasoning",
+            "weightage_percent": 5,
+            "subtopics": [
+              {
+                "name": "Series patterns",
+                "prep_time_hours": 0.4
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Other Subject Name",
+        "strength_level": "weak|moderate|strong",
+        "topics": [
+          {
+            "name": "Topic Name",
+            "weightage_percent": 4,
+            "subtopics": [
+              {
+                "name": "Subtopic Name",
+                "prep_time_hours": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "day2": {
+    ...
+  },
+  ...
+  "day11": {
+    ...
+  }
+}
+
+CRITICAL REQUIREMENTS:
+- Every day MUST include all 3 General Aptitude topics (Verbal Ability, Numerical Ability, Logical Reasoning)
+- General Aptitude time allocation depends on user's strength level (provided above)
+- Each subject should have "strength_level" field based on user's proficiency
+- Include all subtopics from the curriculum for each topic studied that day
+- Total prep_time_hours across all subjects on a day should be 8-10 hours
+- Do not skip any days - generate exactly 11 days
+
+Generate the complete 11-day study plan in the exact JSON format specified above.

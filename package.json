@@ -8,9 +8,17 @@
     "start": "next start"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "@heroicons/react": "^2.2.0",
+    "date-fns": "^4.1.0",
+    "firebase": "^12.6.0",
+    "framer-motion": "^12.23.25",
+    "lucide-react": "^0.556.0",
     "next": "16.0.8",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
