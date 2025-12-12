@@ -40,9 +40,11 @@ export default function DashboardPage() {
       const token = localStorage.getItem('firebaseToken');
       if (!token) return;
 
-      // Check cache
-      const cachedRequest = localStorage.getItem('userPendingRequest');
-      const cacheTime = localStorage.getItem('userPendingRequestCacheTime');
+      // Check cache - include userId
+      const cacheKeyReq = `userPendingRequest_${user.uid}`;
+      const cacheKeyTime = `userPendingRequestCacheTime_${user.uid}`;
+      const cachedRequest = localStorage.getItem(cacheKeyReq);
+      const cacheTime = localStorage.getItem(cacheKeyTime);
       const cacheExpiry = 2 * 60 * 1000; // 2 minutes
       
       if (cachedRequest && cacheTime) {
@@ -67,9 +69,11 @@ export default function DashboardPage() {
       const data = await response.json();
       if (data.success && data.hasPendingRequest) {
         setPendingRequest(data.status);
-        // Cache the request
-        localStorage.setItem('userPendingRequest', JSON.stringify(data));
-        localStorage.setItem('userPendingRequestCacheTime', Date.now().toString());
+        // Cache the request - include userId
+        const cacheKeyReq = `userPendingRequest_${user.uid}`;
+        const cacheKeyTime = `userPendingRequestCacheTime_${user.uid}`;
+        localStorage.setItem(cacheKeyReq, JSON.stringify(data));
+        localStorage.setItem(cacheKeyTime, Date.now().toString());
       }
     } catch (error) {
       // Silent fail
@@ -85,9 +89,11 @@ export default function DashboardPage() {
         return;
       }
 
-      // Check cache first
-      const cachedPlan = localStorage.getItem('userDashboardPlan');
-      const cacheTime = localStorage.getItem('userDashboardPlanCacheTime');
+      // Check cache first - include userId in cache key
+      const cacheKeyPlan = `userDashboardPlan_${user.uid}`;
+      const cacheKeyTime = `userDashboardPlanCacheTime_${user.uid}`;
+      const cachedPlan = localStorage.getItem(cacheKeyPlan);
+      const cacheTime = localStorage.getItem(cacheKeyTime);
       const cacheExpiry = 5 * 60 * 1000; // 5 minutes
       
       if (cachedPlan && cacheTime) {
@@ -116,9 +122,11 @@ export default function DashboardPage() {
         setCurrentPlan(null);
         setPendingRequest(null);
       } else if (data.success && data.plan) {
-        // Cache the plan
-        localStorage.setItem('userDashboardPlan', JSON.stringify(data.plan));
-        localStorage.setItem('userDashboardPlanCacheTime', Date.now().toString());
+        // Cache the plan - include userId
+        const cacheKeyPlan = `userDashboardPlan_${user.uid}`;
+        const cacheKeyTime = `userDashboardPlanCacheTime_${user.uid}`;
+        localStorage.setItem(cacheKeyPlan, JSON.stringify(data.plan));
+        localStorage.setItem(cacheKeyTime, Date.now().toString());
         
         setCurrentPlan(data.plan);
         setPendingRequest(null); // Clear pending request if plan exists

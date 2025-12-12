@@ -63,14 +63,14 @@ export default function PlanPage() {
         return;
       }
 
-      // Check if plan is already cached in localStorage
-      let cachedPlan = localStorage.getItem('userPlan');
-      let cacheTimestamp = localStorage.getItem('userPlanCacheTime');
+      // Check if plan is already cached in localStorage - include userId
+      let cachedPlan = localStorage.getItem(`userPlan_${user.uid}`);
+      let cacheTimestamp = localStorage.getItem(`userPlanCacheTime_${user.uid}`);
       
       // If not found, check dashboard cache as fallback
       if (!cachedPlan) {
-        cachedPlan = localStorage.getItem('userDashboardPlan');
-        cacheTimestamp = localStorage.getItem('userDashboardPlanCacheTime');
+        cachedPlan = localStorage.getItem(`userDashboardPlan_${user.uid}`);
+        cacheTimestamp = localStorage.getItem(`userDashboardPlanCacheTime_${user.uid}`);
       }
       
       const cacheExpiry = 5 * 60 * 1000; // 5 minutes
@@ -133,9 +133,9 @@ export default function PlanPage() {
         createdAt: userData.currentPlanCreatedAt,
       };
 
-      // Cache the plan
-      localStorage.setItem('userPlan', JSON.stringify(plan));
-      localStorage.setItem('userPlanCacheTime', Date.now().toString());
+      // Cache the plan - include userId
+      localStorage.setItem(`userPlan_${user.uid}`, JSON.stringify(plan));
+      localStorage.setItem(`userPlanCacheTime_${user.uid}`, Date.now().toString());
       setCurrentPlan(plan);
     } catch (error) {
       toast.error('Error loading plan');
@@ -217,10 +217,10 @@ export default function PlanPage() {
               });
 
               // Invalidate plan cache so next fetch gets fresh data
-              localStorage.removeItem('userPlan');
-              localStorage.removeItem('userPlanCacheTime');
-              localStorage.removeItem('userDashboardPlan');
-              localStorage.removeItem('userDashboardPlanCacheTime');
+              localStorage.removeItem(`userPlan_${user.uid}`);
+              localStorage.removeItem(`userPlanCacheTime_${user.uid}`);
+              localStorage.removeItem(`userDashboardPlan_${user.uid}`);
+              localStorage.removeItem(`userDashboardPlanCacheTime_${user.uid}`);
 
               toast.success(`✓ Saved`, {
                 duration: 1,
