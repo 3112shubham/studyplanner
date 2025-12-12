@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getApiUrl } from '@/lib/api';
@@ -27,18 +27,36 @@ export default function DashboardPage() {
     }
   }, [authLoading, user, router]);
 
-  // Fetch the user's plan
+  // Fetch the user's plan - only once on mount
   useEffect(() => {
-    if (user?.uid && authLoading === false) {
+    if (user?.uid && authLoading === false && !currentPlan && !pendingRequest) {
       fetchUserPlan();
       checkPendingRequest();
     }
-  }, [user?.uid, authLoading]);
+  }, [user?.uid, authLoading, currentPlan, pendingRequest]);
 
-  const checkPendingRequest = async () => {
+  const checkPendingRequest = useCallback(async () => {
     try {
       const token = localStorage.getItem('firebaseToken');
       if (!token) return;
+
+      // Check cache - include userId
+      const cacheKeyReq = `userPendingRequest_${user.uid}`;
+      const cacheKeyTime = `userPendingRequestCacheTime_${user.uid}`;
+      const cachedRequest = localStorage.getItem(cacheKeyReq);
+      const cacheTime = localStorage.getItem(cacheKeyTime);
+      const cacheExpiry = 2 * 60 * 1000; // 2 minutes
+      
+      if (cachedRequest && cacheTime) {
+        const timeSinceCached = Date.now() - parseInt(cacheTime);
+        if (timeSinceCached < cacheExpiry) {
+          const cached = JSON.parse(cachedRequest);
+          if (cached.hasPendingRequest) {
+            setPendingRequest(cached.status);
+          }
+          return;
+        }
+      }
 
       const response = await fetch(getApiUrl(`/api/user/planrequest?userId=${user.uid}`), {
         method: 'GET',
@@ -51,23 +69,44 @@ export default function DashboardPage() {
       const data = await response.json();
       if (data.success && data.hasPendingRequest) {
         setPendingRequest(data.status);
+        // Cache the request - include userId
+        const cacheKeyReq = `userPendingRequest_${user.uid}`;
+        const cacheKeyTime = `userPendingRequestCacheTime_${user.uid}`;
+        localStorage.setItem(cacheKeyReq, JSON.stringify(data));
+        localStorage.setItem(cacheKeyTime, Date.now().toString());
       }
     } catch (error) {
-      console.error('Error checking pending request:', error);
+      // Silent fail
     }
-  };
+  }, [user?.uid]);
 
-  const fetchUserPlan = async () => {
+  const fetchUserPlan = useCallback(async () => {
     try {
       setPlanLoading(true);
       const token = localStorage.getItem('firebaseToken');
       if (!token) {
-        console.error('No token found');
         setPlanLoading(false);
         return;
       }
 
-      console.log('Fetching plan for user:', user?.uid);
+      // Check cache first - include userId in cache key
+      const cacheKeyPlan = `userDashboardPlan_${user.uid}`;
+      const cacheKeyTime = `userDashboardPlanCacheTime_${user.uid}`;
+      const cachedPlan = localStorage.getItem(cacheKeyPlan);
+      const cacheTime = localStorage.getItem(cacheKeyTime);
+      const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+      
+      if (cachedPlan && cacheTime) {
+        const timeSinceCached = Date.now() - parseInt(cacheTime);
+        if (timeSinceCached < cacheExpiry) {
+          const plan = JSON.parse(cachedPlan);
+          setCurrentPlan(plan);
+          calculateStats(plan);
+          setPlanLoading(false);
+          return;
+        }
+      }
+
       const response = await fetch(getApiUrl('/api/user/currentplan'), {
         method: 'GET',
         headers: {
@@ -76,53 +115,40 @@ export default function DashboardPage() {
         },
       });
 
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', {
-        success: data.success,
-        hasPlan: !!data.plan,
-        daysCount: data.plan?.days?.length,
-        error: data.error,
-      });
       
       if (!response.ok) {
-        console.error('API Error:', data);
         toast.error(data.error || 'Failed to load plan');
         setCurrentPlan(null);
         setPendingRequest(null);
       } else if (data.success && data.plan) {
-        console.log('✅ Plan received successfully:', {
-          planId: data.plan.planId,
-          totalDays: data.plan.totalDays,
-          firstDay: data.plan.days?.[0]?.title,
-        });
+        // Cache the plan - include userId
+        const cacheKeyPlan = `userDashboardPlan_${user.uid}`;
+        const cacheKeyTime = `userDashboardPlanCacheTime_${user.uid}`;
+        localStorage.setItem(cacheKeyPlan, JSON.stringify(data.plan));
+        localStorage.setItem(cacheKeyTime, Date.now().toString());
+        
         setCurrentPlan(data.plan);
         setPendingRequest(null); // Clear pending request if plan exists
         calculateStats(data.plan);
       } else {
-        console.log('No plan found in response');
         setCurrentPlan(null);
       }
     } catch (error) {
-      console.error('Error fetching plan:', error);
       toast.error('Error loading plan');
       setCurrentPlan(null);
     } finally {
       setPlanLoading(false);
     }
-  };
+  }, [user?.uid]);
 
-  const calculateStats = (plan) => {
-    console.log('calculateStats called with plan:', plan);
-    
+  const calculateStats = useCallback((plan) => {
     // Calculate total and completed subtopics from plan structure
     try {
       let totalSubtopics = 0;
       let completedSubtopics = 0;
 
       if (plan && plan.days && Array.isArray(plan.days) && plan.days.length > 0) {
-        console.log('Processing', plan.days.length, 'days');
-        
         plan.days.forEach((day, dayIdx) => {
           try {
             if (day.subtopics && Array.isArray(day.subtopics) && day.subtopics.length > 0) {
@@ -144,12 +170,10 @@ export default function DashboardPage() {
               });
             }
           } catch (dayError) {
-            console.error(`Error processing day ${dayIdx}:`, dayError);
+            // Skip on error
           }
         });
 
-        console.log('Final totals - completed:', completedSubtopics, 'total:', totalSubtopics);
-        
         const progressPercentage = totalSubtopics > 0 ? Math.round((completedSubtopics / totalSubtopics) * 100) : 0;
 
         setStats({
@@ -158,7 +182,6 @@ export default function DashboardPage() {
           progressPercentage: progressPercentage,
         });
       } else {
-        console.log('Plan has no days or is empty');
         setStats({
           completedTopics: 0,
           totalTopics: 0,
@@ -166,22 +189,20 @@ export default function DashboardPage() {
         });
       }
     } catch (error) {
-      console.error('Error in calculateStats:', error);
       setStats({
         completedTopics: 0,
         totalTopics: 0,
         progressPercentage: 0,
       });
     }
-  };
+  }, []);
 
-  const fetchProgressStats = async () => {
+  const fetchProgressStats = useCallback(async () => {
     // Progress stats are now calculated directly from the plan in calculateStats
     // This function is kept for backward compatibility but does nothing
-    console.log('fetchProgressStats called - stats are calculated from plan data');
-  };
+  }, []);
 
-  const handlePlanRequestSubmit = async (planData) => {
+  const handlePlanRequestSubmit = useCallback(async (planData) => {
     try {
       if (!user?.uid) {
         toast.error('User not authenticated');
@@ -202,8 +223,6 @@ export default function DashboardPage() {
         topicStrengths: planData.topicStrengths,
       };
 
-      console.log('Sending plan request:', payload);
-
       const response = await fetch(getApiUrl('/api/user/planrequest'), {
         method: 'POST',
         headers: {
@@ -216,7 +235,6 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('API Error:', data);
         toast.error(data.error || 'Failed to create plan request');
         // If there's a pending request, update the status
         if (data.hasPendingRequest) {
@@ -230,16 +248,15 @@ export default function DashboardPage() {
       setShowPlanModal(false);
     } catch (error) {
       toast.error('An error occurred while submitting plan request');
-      console.error('Plan request error:', error);
     }
-  };
+  }, [user?.uid, userData?.name]);
 
-  const toggleDayExpanded = (dayNumber) => {
+  const toggleDayExpanded = useCallback((dayNumber) => {
     setExpandedDays(prev => ({
       ...prev,
       [dayNumber]: !prev[dayNumber]
     }));
-  };
+  }, []);
 
   if (authLoading || planLoading) {
     return (
@@ -253,17 +270,55 @@ export default function DashboardPage() {
     return null;
   }
 
+  // Show loader while loading
+  if (authLoading || planLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Welcome Header */}
-        <div className="mb-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg">
-          <h1 className="text-4xl md:text-5xl font-bold mb-2">
-            Welcome back👋
-          </h1>
-          <p className="text-blue-100 text-lg">
-            Your personalized GATE CSE study journey
-          </p>
+        {/* Welcome Header with Refresh Button */}
+        <div className="mb-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold mb-2">
+              Welcome back👋
+            </h1>
+            <p className="text-blue-100 text-lg">
+              Your personalized GATE CSE study journey
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              // Clear cache for current user
+              const cacheKeyPlan = `userDashboardPlan_${user.uid}`;
+              const cacheKeyTime = `userDashboardPlanCacheTime_${user.uid}`;
+              localStorage.removeItem(cacheKeyPlan);
+              localStorage.removeItem(cacheKeyTime);
+              // Refetch data
+              fetchUserPlan();
+              checkPendingRequest();
+            }}
+            className="bg-white hover:bg-blue-50 text-blue-600 font-semibold py-2 px-4 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap"
+            title="Refresh data from database"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
         </div>
 
         {/* Stats Cards Grid */}

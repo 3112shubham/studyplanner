@@ -1,12 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getApiUrl } from '@/lib/api';
+import { db } from '@/lib/firebase/config';
+import { doc, getDoc, updateDoc, getDocs, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ChevronLeft, Check } from 'lucide-react';
 import PlanViewer from '@/components/User/PlanViewer';
+
+// Debounce helper
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
 
 export default function PlanPage() {
   const router = useRouter();
@@ -15,6 +26,7 @@ export default function PlanPage() {
   const [planLoading, setPlanLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [progress, setProgress] = useState({});
+  const offlineQueueRef = useRef([]); // Queue for offline updates
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -23,165 +35,267 @@ export default function PlanPage() {
     }
   }, [authLoading, user, router]);
 
-  // Fetch the user's plan and progress
+  // Fetch the user's plan and progress - only fetch once on mount
   useEffect(() => {
-    if (user?.uid && authLoading === false) {
+    if (user?.uid && authLoading === false && !currentPlan) {
       fetchUserPlan();
     }
-  }, [user?.uid, authLoading]);
+  }, [user?.uid, authLoading, currentPlan]);
 
-  // Build progress object whenever plan changes
+  // Build progress object whenever plan changes (memoized)
   useEffect(() => {
     if (currentPlan) {
-      fetchProgress();
+      buildProgressFromPlan();
+      // Set default day after plan loads
+      if (currentPlan.days && currentPlan.days.length > 0) {
+        const dayNumberToSelect = currentPlan.days[0].dayNumber || 1;
+        setSelectedDay(dayNumberToSelect);
+      }
     }
   }, [currentPlan]);
 
-  const fetchUserPlan = async () => {
+  const fetchUserPlan = useCallback(async () => {
     try {
       setPlanLoading(true);
-      const token = localStorage.getItem('firebaseToken');
-      if (!token) {
-        console.error('No token found');
+      
+      if (!user?.uid) {
         setPlanLoading(false);
         return;
       }
 
-      const response = await fetch(getApiUrl(`/api/user/currentplan`), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      // Check if plan is already cached in localStorage - include userId
+      let cachedPlan = localStorage.getItem(`userPlan_${user.uid}`);
+      let cacheTimestamp = localStorage.getItem(`userPlanCacheTime_${user.uid}`);
+      
+      // If not found, check dashboard cache as fallback
+      if (!cachedPlan) {
+        cachedPlan = localStorage.getItem(`userDashboardPlan_${user.uid}`);
+        cacheTimestamp = localStorage.getItem(`userDashboardPlanCacheTime_${user.uid}`);
+      }
+      
+      const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+      
+      if (cachedPlan && cacheTimestamp) {
+        const timeSinceCached = Date.now() - parseInt(cacheTimestamp);
+        if (timeSinceCached < cacheExpiry) {
+          const parsedPlan = JSON.parse(cachedPlan);
+          // Ensure plan has days array
+          if (parsedPlan.days) {
+            setCurrentPlan(parsedPlan);
+            setPlanLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Fetch directly from Firestore - MUCH FASTER
+      const userDocRef = doc(db, 'users', user.uid);
+      const userSnapshot = await getDoc(userDocRef);
+
+      if (!userSnapshot.exists()) {
+        setCurrentPlan(null);
+        setPlanLoading(false);
+        return;
+      }
+
+      const userData = userSnapshot.data();
+      const planId = userData.currentPlan;
+
+      if (!planId) {
+        setCurrentPlan(null);
+        setPlanLoading(false);
+        return;
+      }
+
+      // Fetch all planDays for this user
+      const planDaysRef = collection(db, 'users', user.uid, 'planDays');
+      const planDaysSnapshot = await getDocs(planDaysRef);
+
+      if (planDaysSnapshot.empty) {
+        setCurrentPlan(null);
+        setPlanLoading(false);
+        return;
+      }
+
+      // Build plan object from planDays
+      const days = [];
+      planDaysSnapshot.forEach(doc => {
+        const dayData = doc.data();
+        days.push(dayData);
       });
 
-      const data = await response.json();
+      // Sort days by day number
+      days.sort((a, b) => a.dayNumber - b.dayNumber);
 
-      if (!response.ok) {
-        console.error('API Error:', data);
-        toast.error(data.error || 'Failed to load plan');
-        setCurrentPlan(null);
-      } else if (data.success && data.plan) {
-        console.log('Plan fetched:', data.plan);
-        setCurrentPlan(data.plan);
-        // Set first day as selected
-        if (data.plan.days && data.plan.days.length > 0) {
-          setSelectedDay(data.plan.days[0].dayNumber || 1);
-        }
-      } else {
-        setCurrentPlan(null);
-      }
+      const plan = {
+        id: planId,
+        days: days,
+        createdAt: userData.currentPlanCreatedAt,
+      };
+
+      // Cache the plan - include userId
+      localStorage.setItem(`userPlan_${user.uid}`, JSON.stringify(plan));
+      localStorage.setItem(`userPlanCacheTime_${user.uid}`, Date.now().toString());
+      setCurrentPlan(plan);
     } catch (error) {
-      console.error('Error fetching plan:', error);
       toast.error('Error loading plan');
       setCurrentPlan(null);
     } finally {
       setPlanLoading(false);
     }
-  };
+  }, [user?.uid]);
 
-  const fetchProgress = async () => {
-    try {
-      // Build progress object from current plan's subtopics
-      const newProgress = {};
+  const buildProgressFromPlan = useCallback(() => {
+    if (!currentPlan?.days) return;
+    
+    const newProgress = {};
+    for (let i = 0; i < currentPlan.days.length; i++) {
+      const day = currentPlan.days[i];
+      const dayNumber = day.dayNumber;
+      if (!day.subtopics) continue;
       
-      if (currentPlan && currentPlan.days) {
-        currentPlan.days.forEach((day) => {
-          const dayNumber = day.dayNumber;
-          if (day.subtopics && Array.isArray(day.subtopics)) {
-            day.subtopics.forEach((subject, subjectIdx) => {
-              if (subject.topics && Array.isArray(subject.topics)) {
-                subject.topics.forEach((topic, topicIdx) => {
-                  if (topic.subtopics && Array.isArray(topic.subtopics)) {
-                    topic.subtopics.forEach((subtopic, subtopicIdx) => {
-                      const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
-                      // Check if subtopic is explicitly marked as true
-                      newProgress[progressKey] = subtopic.checked === true;
-                    });
-                  }
-                });
-              }
-            });
+      for (let si = 0; si < day.subtopics.length; si++) {
+        const subject = day.subtopics[si];
+        if (!subject.topics) continue;
+        
+        for (let ti = 0; ti < subject.topics.length; ti++) {
+          const topic = subject.topics[ti];
+          if (!topic.subtopics) continue;
+          
+          for (let sti = 0; sti < topic.subtopics.length; sti++) {
+            const progressKey = `day_${dayNumber}_subject_${si}_topic_${ti}_subtopic_${sti}`;
+            newProgress[progressKey] = topic.subtopics[sti].checked === true;
           }
-        });
-      }
-      
-      console.log('Rebuilt progress object:', newProgress);
-      setProgress(newProgress);
-    } catch (error) {
-      console.error('Error building progress from plan:', error);
-    }
-  };
-
-  const handleTopicCheck = async (dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
-    try {
-      const token = localStorage.getItem('firebaseToken');
-      if (!token) {
-        toast.error('No authentication token found');
-        return;
-      }
-
-      const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIndex}_subtopic_${subtopicIndex}`;
-
-      // Update local state immediately for instant UI feedback
-      setProgress(prev => {
-        const updated = {
-          ...prev,
-          [progressKey]: isChecked
-        };
-        console.log('Updated local progress:', { progressKey, isChecked, allProgress: Object.keys(updated) });
-        return updated;
-      });
-
-      // Send to server
-      console.log('Sending progress update:', { dayNumber, subjectIdx, topicIndex, subtopicIndex, completed: isChecked });
-      const response = await fetch(getApiUrl(`/api/user/progress`), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          dayNumber,
-          subjectIdx,
-          topicIndex,
-          subtopicIndex,
-          completed: isChecked,
-        }),
-      });
-
-      console.log('Progress API response status:', response.status, response.ok);
-      
-      const data = await response.json();
-      console.log('Progress API response data:', data);
-      
-      if (response.ok && data.success) {
-        // Just show success message - local state already updated
-        if (data.progress !== undefined) {
-          toast.success(`✓ Saved! Overall progress: ${data.progress}%`, {
-            duration: 2,
-            icon: '💾',
-          });
-        } else {
-          toast.success('✓ Progress saved to database!', {
-            duration: 2,
-          });
         }
-      } else {
-        console.error('API response was not successful:', data);
-        toast.error(data.error || 'Failed to save progress');
-        // Revert local state on error
-        setProgress(prev => {
-          const updated = { ...prev };
-          delete updated[progressKey];
-          return updated;
-        });
       }
-    } catch (error) {
-      console.error('Error updating progress:', error);
-      toast.error('Failed to update progress');
     }
-  };
+    setProgress(newProgress);
+  }, [currentPlan]);
+
+  const handleTopicCheck = useCallback((dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
+    if (!user?.uid) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIndex}_subtopic_${subtopicIndex}`;
+
+    // Update local state immediately for instant UI feedback
+    setProgress(prev => ({
+      ...prev,
+      [progressKey]: isChecked
+    }));
+
+    // Direct Firestore update - NO API CALL
+    const updateFirestore = async () => {
+      try {
+        const dayDocName = `Day_${String(dayNumber).padStart(2, '0')}`;
+        const dayDocRef = doc(db, 'users', user.uid, 'planDays', dayDocName);
+        
+        // Get current document
+        const daySnapshot = await getDoc(dayDocRef);
+        if (!daySnapshot.exists()) {
+          toast.error('Day document not found');
+          return;
+        }
+
+        const dayData = daySnapshot.data();
+        const subtopicsArray = dayData.subtopics || [];
+
+        // Navigate the nested structure and update the specific subtopic
+        if (subtopicsArray[subjectIdx]) {
+          const subject = subtopicsArray[subjectIdx];
+          if (subject.topics && subject.topics[topicIndex]) {
+            const topic = subject.topics[topicIndex];
+            if (topic.subtopics && topic.subtopics[subtopicIndex]) {
+              // Update the subtopic's checked status
+              topic.subtopics[subtopicIndex].checked = isChecked;
+              
+              // Persist back to Firestore
+              await updateDoc(dayDocRef, {
+                subtopics: subtopicsArray
+              });
+
+              // Invalidate plan cache so next fetch gets fresh data
+              localStorage.removeItem(`userPlan_${user.uid}`);
+              localStorage.removeItem(`userPlanCacheTime_${user.uid}`);
+              localStorage.removeItem(`userDashboardPlan_${user.uid}`);
+              localStorage.removeItem(`userDashboardPlanCacheTime_${user.uid}`);
+
+              toast.success(`✓ Saved`, {
+                duration: 1,
+                icon: '💾',
+              });
+            }
+          }
+        }
+      } catch (error) {
+        // If offline, queue the update
+        if (!navigator.onLine) {
+          offlineQueueRef.current.push({
+            dayNumber,
+            subjectIdx,
+            topicIndex,
+            subtopicIndex,
+            isChecked,
+            timestamp: Date.now()
+          });
+          toast.info('Offline - will sync when online', { duration: 2 });
+        } else {
+          // Revert on error
+          setProgress(prev => {
+            const updated = { ...prev };
+            delete updated[progressKey];
+            return updated;
+          });
+          toast.error('Failed to save progress');
+        }
+      }
+    };
+
+    // Execute Firestore update
+    updateFirestore();
+  }, [user?.uid]);
+
+  // Handle online/offline transitions
+  useEffect(() => {
+    const syncOfflineQueue = async () => {
+      if (!navigator.onLine || offlineQueueRef.current.length === 0) return;
+
+      const queue = [...offlineQueueRef.current];
+      
+      for (const update of queue) {
+        try {
+          const dayDocName = `Day_${String(update.dayNumber).padStart(2, '0')}`;
+          const dayDocRef = doc(db, 'users', user.uid, 'planDays', dayDocName);
+          
+          const daySnapshot = await getDoc(dayDocRef);
+          if (!daySnapshot.exists()) continue;
+
+          const dayData = daySnapshot.data();
+          const subtopicsArray = dayData.subtopics || [];
+
+          if (subtopicsArray[update.subjectIdx]?.topics?.[update.topicIndex]?.subtopics?.[update.subtopicIndex]) {
+            subtopicsArray[update.subjectIdx].topics[update.topicIndex].subtopics[update.subtopicIndex].checked = update.isChecked;
+            
+            await updateDoc(dayDocRef, { subtopics: subtopicsArray });
+            offlineQueueRef.current = offlineQueueRef.current.filter(u => u.timestamp !== update.timestamp);
+          }
+        } catch (error) {
+          // Keep trying
+        }
+      }
+
+      if (offlineQueueRef.current.length === 0) {
+        toast.success('All offline changes synced!', { duration: 2 });
+        localStorage.removeItem('userPlan');
+        localStorage.removeItem('userPlanCacheTime');
+      }
+    };
+
+    window.addEventListener('online', syncOfflineQueue);
+    return () => window.removeEventListener('online', syncOfflineQueue);
+  }, [user?.uid]);
 
   if (authLoading || planLoading) {
     return (
@@ -206,7 +320,7 @@ export default function PlanPage() {
     );
   }
 
-  const currentDayPlan = currentPlan.days?.find(day => day.dayNumber === selectedDay);
+  const currentDayPlan = currentPlan.days?.find(day => day.dayNumber === selectedDay) || currentPlan.days?.[0];
 
   // Calculate overall progress across all days
   let totalAllSubtopics = 0;
@@ -255,7 +369,33 @@ export default function PlanPage() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-md sticky top-8 h-[calc(100vh-6rem)]">
               <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-bold text-gray-900">📅 Select Day</h2>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h2 className="text-lg font-bold text-gray-900">📅 Select Day</h2>
+                  <button
+                    onClick={() => {
+                      // Clear cache for current user (both plan and dashboard cache)
+                      const cacheKeyPlan = `userPlan_${user.uid}`;
+                      const cacheKeyTime = `userPlanCacheTime_${user.uid}`;
+                      const cacheKeyDashboard = `userDashboardPlan_${user.uid}`;
+                      const cacheKeyDashboardTime = `userDashboardPlanCacheTime_${user.uid}`;
+                      localStorage.removeItem(cacheKeyPlan);
+                      localStorage.removeItem(cacheKeyTime);
+                      localStorage.removeItem(cacheKeyDashboard);
+                      localStorage.removeItem(cacheKeyDashboardTime);
+                      // Reset plan state to force fresh fetch from Firestore
+                      setCurrentPlan(null);
+                      setProgress({});
+                      // Refetch data
+                      fetchUserPlan();
+                    }}
+                    className="bg-white hover:bg-blue-50 text-blue-600 font-semibold py-1 px-2 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap"
+                    title="Refresh data from database"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
                 <p className="text-sm text-gray-600 mt-1">Total: {currentPlan.days?.length || 35} days</p>
               </div>
 
