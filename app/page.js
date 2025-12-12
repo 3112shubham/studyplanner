@@ -43,20 +43,20 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-600 to-blue-700 text-white py-24">
+      <section className="bg-gradient-to-br from-blue-600 to-blue-700 text-white py-12 sm:py-24">
         <div className="container mx-auto px-4 text-center">
           {user && userData?.name && (
             <p className="text-blue-100 text-lg mb-4 font-semibold">
               Welcome back, <span className="text-yellow-200">{userData.name}</span>! 👋
             </p>
           )}
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold mb-4 sm:mb-6">
             Master GATE CS in {' '}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 to-orange-200">
               35 Days
             </span>
           </h1>
-          <p className="text-xl mb-8 max-w-2xl mx-auto text-blue-100">
+          <p className="text-lg sm:text-xl mb-6 sm:mb-8 max-w-2xl mx-auto text-blue-100">
             Personalized study plans, progress tracking, and expert guidance to ace GATE Computer Science
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

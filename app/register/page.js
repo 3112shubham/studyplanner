@@ -62,12 +62,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 flex items-top justify-center py-6 sm:py-6 px-4">
       <div className="w-full max-w-md">
-
+        {/* Logo/Brand Section */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign Up</h2>
+          <p className="text-gray-600 pb-3">Create your account and start preparing</p>
+        </div>
         {/* Form Card */}
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-blue-100">
-          <p className="text-gray-600 pb-3">Create your account and start preparing</p>
+          
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">

@@ -51,8 +51,8 @@ export default function Navbar() {
             {user ? (
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary-600" />
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-blue-600" />
                   </div>
                   <span className="text-gray-700">
                     {user.email?.split('@')[0]}
@@ -70,13 +70,13 @@ export default function Navbar() {
               <div className="flex items-center space-x-4">
                 <Link
                   href="/login"
-                  className="text-gray-600 hover:text-primary-600"
+                  className="text-gray-600 hover:text-blue-600"
                 >
                   Login
                 </Link>
                 <Link
                   href="/register"
-                  className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Sign Up
                 </Link>
@@ -112,8 +112,8 @@ export default function Navbar() {
                 {user ? (
                   <>
                     <div className="flex items-center space-x-2 py-2">
-                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-primary-600" />
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="h-5 w-5 text-blue-600" />
                       </div>
                       <span className="text-gray-700">
                         {user.email}
@@ -134,14 +134,14 @@ export default function Navbar() {
                   <div className="flex flex-col space-y-2">
                     <Link
                       href="/login"
-                      className="text-gray-600 hover:text-primary-600 py-2"
+                      className="text-gray-600 hover:text-blue-600 py-2"
                       onClick={() => setIsOpen(false)}
                     >
                       Login
                     </Link>
                     <Link
                       href="/register"
-                      className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-center"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-center"
                       onClick={() => setIsOpen(false)}
                     >
                       Sign Up

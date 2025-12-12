@@ -26,6 +26,7 @@ export default function PlanPage() {
   const [planLoading, setPlanLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [progress, setProgress] = useState({});
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const offlineQueueRef = useRef([]); // Queue for offline updates
 
   useEffect(() => {
@@ -52,6 +53,33 @@ export default function PlanPage() {
         setSelectedDay(dayNumberToSelect);
       }
     }
+  }, [currentPlan]);
+
+  // Restore scroll position on mount and save on scroll
+  useEffect(() => {
+    const restoreScrollPosition = () => {
+      const savedPosition = sessionStorage.getItem('planPageScrollPosition');
+      if (savedPosition) {
+        // Scroll immediately without flicker
+        window.scrollY = parseInt(savedPosition);
+        document.documentElement.scrollTop = parseInt(savedPosition);
+        document.body.scrollTop = parseInt(savedPosition);
+        sessionStorage.removeItem('planPageScrollPosition');
+      }
+    };
+
+    // Restore immediately after plan loads
+    if (currentPlan) {
+      restoreScrollPosition();
+    }
+
+    // Save scroll position before unload
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem('planPageScrollPosition', window.scrollY.toString());
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentPlan]);
 
   const fetchUserPlan = useCallback(async () => {
@@ -352,28 +380,36 @@ export default function PlanPage() {
   const overallProgressPercentage = totalAllSubtopics > 0 ? Math.round((completedAllSubtopics / totalAllSubtopics) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Floating Back Button */}
+    <div className="bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Floating Back Button - Desktop Only */}
       <button
         onClick={() => router.push('/dashboard')}
-        className="fixed top-20 left-4 z-40 flex items-center justify-center w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all"
+        className="hidden sm:flex fixed top-20 left-4 z-40 items-center justify-center w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all"
         aria-label="Go back to dashboard"
         title="Back to Dashboard"
       >
         <ChevronLeft size={20} />
       </button>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Side Panel - Day Selector */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-md sticky top-8 h-[calc(100vh-6rem)]">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <h2 className="text-lg font-bold text-gray-900">📅 Select Day</h2>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        {/* Mobile Day Selector - Collapsible Panel */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden mb-6">
+            <div className="bg-white rounded-xl shadow-md p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <h2 className="text-base font-bold text-gray-900">📅 Select Day</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="bg-white hover:bg-red-50 text-red-600 font-semibold py-1 px-2 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap text-sm"
+                    title="Close"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                   <button
                     onClick={() => {
-                      // Clear cache for current user (both plan and dashboard cache)
                       const cacheKeyPlan = `userPlan_${user.uid}`;
                       const cacheKeyTime = `userPlanCacheTime_${user.uid}`;
                       const cacheKeyDashboard = `userDashboardPlan_${user.uid}`;
@@ -382,10 +418,121 @@ export default function PlanPage() {
                       localStorage.removeItem(cacheKeyTime);
                       localStorage.removeItem(cacheKeyDashboard);
                       localStorage.removeItem(cacheKeyDashboardTime);
-                      // Reset plan state to force fresh fetch from Firestore
                       setCurrentPlan(null);
                       setProgress({});
-                      // Refetch data
+                      fetchUserPlan();
+                    }}
+                    className="bg-white hover:bg-blue-50 text-blue-600 font-semibold py-1 px-2 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap text-sm"
+                    title="Refresh data from database"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 mb-3">Total: {currentPlan.days?.length || 35} days</p>
+              
+              {/* Horizontal Scrollable Day List */}
+              <div className="overflow-x-auto -mx-4 px-4">
+                <div className="flex gap-2 pb-2">
+                  {currentPlan.days?.map((day, index) => {
+                    const dayNumber = day.dayNumber || (index + 1);
+                    
+                    let dayTotalSubtopics = 0;
+                    let dayCompletedSubtopics = 0;
+                    
+                    if (day.subtopics && Array.isArray(day.subtopics)) {
+                      day.subtopics.forEach((subject, subjectIdx) => {
+                        if (subject.topics && Array.isArray(subject.topics)) {
+                          subject.topics.forEach((topic, topicIdx) => {
+                            if (topic.subtopics && Array.isArray(topic.subtopics)) {
+                              topic.subtopics.forEach((subtopic, subtopicIdx) => {
+                                dayTotalSubtopics++;
+                                const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
+                                if (progress[progressKey] === true) {
+                                  dayCompletedSubtopics++;
+                                }
+                              });
+                            }
+                          });
+                        }
+                      });
+                    }
+
+                    const dayProgressPercentage = dayTotalSubtopics > 0 ? Math.round((dayCompletedSubtopics / dayTotalSubtopics) * 100) : 0;
+
+                    return (
+                      <button
+                        key={dayNumber}
+                        onClick={() => setSelectedDay(dayNumber)}
+                        className={`flex-shrink-0 px-3 py-2 rounded-lg transition-all relative overflow-hidden border-2 min-w-max ${
+                          selectedDay === dayNumber
+                            ? 'bg-white text-blue-600 border-blue-600 shadow-lg'
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-900 border-gray-200'
+                        }`}
+                      >
+                        {/* Vertical Progress Fill - Bottom to Top */}
+                        <div
+                          className={`absolute bottom-0 left-0 right-0 transition-all duration-500 ${
+                            selectedDay === dayNumber ? 'bg-blue-100' : 'bg-blue-300'
+                          }`}
+                          style={{ height: `${dayProgressPercentage}%` }}
+                        ></div>
+                        <div className="relative">
+                          <p className="font-semibold text-sm">D{dayNumber}</p>
+                          <p className={`text-xs ${
+                            selectedDay === dayNumber ? 'text-blue-500' : 'text-gray-600'
+                          }`}>
+                            {dayCompletedSubtopics}/{dayTotalSubtopics}
+                          </p>
+                          {dayCompletedSubtopics > 0 && dayCompletedSubtopics === dayTotalSubtopics && (
+                            <div className="text-xs font-bold text-green-600 mt-1">✓</div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Collapsed Navbar - Show when panel is hidden */}
+        {!mobileMenuOpen && (
+          <div className="lg:hidden mb-6">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="w-full bg-white rounded-xl shadow-md p-4 border-b border-gray-200 flex items-center justify-between hover:shadow-lg transition-shadow"
+            >
+              <h2 className="text-base font-bold text-gray-900">📅 Select Day</h2>
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8">
+          {/* Side Panel - Day Selector (Desktop Only) */}
+          <div className="hidden lg:block lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-md sticky top-8 h-[calc(100vh-6rem)]">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h2 className="text-lg font-bold text-gray-900">📅 Select Day</h2>
+                  <button
+                    onClick={() => {
+                      const cacheKeyPlan = `userPlan_${user.uid}`;
+                      const cacheKeyTime = `userPlanCacheTime_${user.uid}`;
+                      const cacheKeyDashboard = `userDashboardPlan_${user.uid}`;
+                      const cacheKeyDashboardTime = `userDashboardPlanCacheTime_${user.uid}`;
+                      localStorage.removeItem(cacheKeyPlan);
+                      localStorage.removeItem(cacheKeyTime);
+                      localStorage.removeItem(cacheKeyDashboard);
+                      localStorage.removeItem(cacheKeyDashboardTime);
+                      setCurrentPlan(null);
+                      setProgress({});
                       fetchUserPlan();
                     }}
                     className="bg-white hover:bg-blue-50 text-blue-600 font-semibold py-1 px-2 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap"
@@ -404,7 +551,6 @@ export default function PlanPage() {
                   {currentPlan.days?.map((day, index) => {
                     const dayNumber = day.dayNumber || (index + 1);
                     
-                    // Calculate day progress by checking all subtopics in that day
                     let dayTotalSubtopics = 0;
                     let dayCompletedSubtopics = 0;
                     
@@ -416,7 +562,6 @@ export default function PlanPage() {
                               topic.subtopics.forEach((subtopic, subtopicIdx) => {
                                 dayTotalSubtopics++;
                                 const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
-                                // Only count as completed if explicitly true
                                 if (progress[progressKey] === true) {
                                   dayCompletedSubtopics++;
                                 }
@@ -439,7 +584,6 @@ export default function PlanPage() {
                             : 'bg-gray-50 hover:bg-gray-100 text-gray-900 border-gray-200'
                         }`}
                       >
-                        {/* Progress Background Fill */}
                         <div
                           className={`absolute inset-0 transition-all duration-500 ${
                             selectedDay === dayNumber
@@ -449,7 +593,6 @@ export default function PlanPage() {
                           style={{ width: `${dayProgressPercentage}%` }}
                         ></div>
 
-                        {/* Content */}
                         <div className="relative flex items-center justify-between">
                           <div>
                             <p className="font-semibold">Day {dayNumber}</p>
@@ -486,7 +629,7 @@ export default function PlanPage() {
             {currentDayPlan ? (
               <>
                 {!currentDayPlan.subtopics || currentDayPlan.subtopics.length === 0 ? (
-                  <div className="bg-white rounded-xl shadow-md p-8 text-center">
+                  <div className="bg-white rounded-xl shadow-md p-6 sm:p-8 text-center">
                     <p className="text-gray-600 mb-4">No structured topics for this day</p>
                     <p className="text-sm text-gray-500">Topics list: {currentDayPlan.topics?.join(', ')}</p>
                     <p className="text-sm text-gray-500 mt-2">
@@ -503,7 +646,7 @@ export default function PlanPage() {
                 )}
               </>
             ) : (
-              <div className="bg-white rounded-xl shadow-md p-8 text-center">
+              <div className="bg-white rounded-xl shadow-md p-6 sm:p-8 text-center">
                 <p className="text-gray-600">Day not found</p>
               </div>
             )}
