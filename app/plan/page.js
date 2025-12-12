@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getApiUrl } from '@/lib/api';
 import { db } from '@/lib/firebase/config';
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, getDocs, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ChevronLeft, Check } from 'lucide-react';
 import PlanViewer from '@/components/User/PlanViewer';
@@ -96,18 +96,36 @@ export default function PlanPage() {
         return;
       }
 
-      // Get the actual plan document
-      const planDocRef = doc(db, 'studyPlans', planId);
-      const planSnapshot = await getDoc(planDocRef);
+      // Fetch all planDays for this user
+      const planDaysRef = collection(db, 'users', user.uid, 'planDays');
+      const planDaysSnapshot = await getDocs(planDaysRef);
 
-      if (planSnapshot.exists()) {
-        const plan = planSnapshot.data();
-        // Cache the plan
-        localStorage.setItem('userPlan', JSON.stringify(plan));
-        localStorage.setItem('userPlanCacheTime', Date.now().toString());
-        setCurrentPlan(plan);
-      } else {
+      if (planDaysSnapshot.empty) {
         setCurrentPlan(null);
+        setPlanLoading(false);
+        return;
+      }
+
+      // Build plan object from planDays
+      const days = [];
+      planDaysSnapshot.forEach(doc => {
+        const dayData = doc.data();
+        days.push(dayData);
+      });
+
+      // Sort days by day number
+      days.sort((a, b) => a.dayNumber - b.dayNumber);
+
+      const plan = {
+        id: planId,
+        days: days,
+        createdAt: userData.currentPlanCreatedAt,
+      };
+
+      // Cache the plan
+      localStorage.setItem('userPlan', JSON.stringify(plan));
+      localStorage.setItem('userPlanCacheTime', Date.now().toString());
+      setCurrentPlan(plan);
       }
     } catch (error) {
       toast.error('Error loading plan');

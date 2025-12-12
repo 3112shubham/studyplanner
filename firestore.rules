@@ -1,19 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to read/write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-      
-      // Allow users to update their own planDays
-      match /planDays/{dayDoc} {
-        allow read, write: if request.auth.uid == userId;
-      }
-      
-      // Allow users to update their own progress
-      match /progress/{progressDoc} {
-        allow read, write: if request.auth.uid == userId;
-      }
+    // Allow all read, write, delete for testing
+    match /{document=**} {
+      allow read, write, delete: if true;
     }
   }
 }
