@@ -48,7 +48,6 @@ export default function DashboardPage() {
       if (cachedRequest && cacheTime) {
         const timeSinceCached = Date.now() - parseInt(cacheTime);
         if (timeSinceCached < cacheExpiry) {
-          console.log('[Cache] Using cached pending request');
           const cached = JSON.parse(cachedRequest);
           if (cached.hasPendingRequest) {
             setPendingRequest(cached.status);

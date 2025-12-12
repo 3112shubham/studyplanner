@@ -1,12 +1,21 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getApiUrl } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ChevronLeft, Check } from 'lucide-react';
 import PlanViewer from '@/components/User/PlanViewer';
+
+// Debounce helper
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
 
 export default function PlanPage() {
   const router = useRouter();
@@ -15,6 +24,8 @@ export default function PlanPage() {
   const [planLoading, setPlanLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [progress, setProgress] = useState({});
+  const pendingUpdates = useRef({}); // Queue for batched updates
+  const updateTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -30,21 +41,15 @@ export default function PlanPage() {
     }
   }, [user?.uid, authLoading, currentPlan]);
 
-  // Build progress object whenever plan changes
+  // Build progress object whenever plan changes (memoized)
   useEffect(() => {
     if (currentPlan) {
       buildProgressFromPlan();
-    }
-  }, [currentPlan]);
-
-  // Ensure day 1 is selected by default when plan loads
-  useEffect(() => {
-    if (currentPlan && currentPlan.days && currentPlan.days.length > 0) {
-      // Find the first day or set to 1
-      const firstDay = currentPlan.days[0];
-      const dayNumberToSelect = firstDay.dayNumber || 1;
-      setSelectedDay(dayNumberToSelect);
-      console.log('[Plan] Set default selected day to:', dayNumberToSelect);
+      // Set default day after plan loads
+      if (currentPlan.days && currentPlan.days.length > 0) {
+        const dayNumberToSelect = currentPlan.days[0].dayNumber || 1;
+        setSelectedDay(dayNumberToSelect);
+      }
     }
   }, [currentPlan]);
 
@@ -53,7 +58,6 @@ export default function PlanPage() {
       setPlanLoading(true);
       const token = localStorage.getItem('firebaseToken');
       if (!token) {
-        console.error('No token found');
         setPlanLoading(false);
         return;
       }
@@ -66,7 +70,6 @@ export default function PlanPage() {
       if (cachedPlan && cacheTimestamp) {
         const timeSinceCached = Date.now() - parseInt(cacheTimestamp);
         if (timeSinceCached < cacheExpiry) {
-          console.log('[Cache] Using cached plan data');
           setCurrentPlan(JSON.parse(cachedPlan));
           setPlanLoading(false);
           return;
@@ -84,25 +87,17 @@ export default function PlanPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('API Error:', data);
         toast.error(data.error || 'Failed to load plan');
         setCurrentPlan(null);
       } else if (data.success && data.plan) {
-        console.log('Plan fetched:', data.plan);
         // Cache the plan
         localStorage.setItem('userPlan', JSON.stringify(data.plan));
         localStorage.setItem('userPlanCacheTime', Date.now().toString());
-        
         setCurrentPlan(data.plan);
-        // Set first day as selected
-        if (data.plan.days && data.plan.days.length > 0) {
-          setSelectedDay(data.plan.days[0].dayNumber || 1);
-        }
       } else {
         setCurrentPlan(null);
       }
     } catch (error) {
-      console.error('Error fetching plan:', error);
       toast.error('Error loading plan');
       setCurrentPlan(null);
     } finally {
@@ -111,69 +106,82 @@ export default function PlanPage() {
   }, []);
 
   const buildProgressFromPlan = useCallback(() => {
-    // Build progress object from current plan's subtopics
+    if (!currentPlan?.days) return;
+    
     const newProgress = {};
-    
-    if (currentPlan && currentPlan.days) {
-      currentPlan.days.forEach((day) => {
-        const dayNumber = day.dayNumber;
-        if (day.subtopics && Array.isArray(day.subtopics)) {
-          day.subtopics.forEach((subject, subjectIdx) => {
-            if (subject.topics && Array.isArray(subject.topics)) {
-              subject.topics.forEach((topic, topicIdx) => {
-                if (topic.subtopics && Array.isArray(topic.subtopics)) {
-                  topic.subtopics.forEach((subtopic, subtopicIdx) => {
-                    const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
-                    // Check if subtopic is explicitly marked as true
-                    newProgress[progressKey] = subtopic.checked === true;
-                  });
-                }
-              });
-            }
-          });
+    for (let i = 0; i < currentPlan.days.length; i++) {
+      const day = currentPlan.days[i];
+      const dayNumber = day.dayNumber;
+      if (!day.subtopics) continue;
+      
+      for (let si = 0; si < day.subtopics.length; si++) {
+        const subject = day.subtopics[si];
+        if (!subject.topics) continue;
+        
+        for (let ti = 0; ti < subject.topics.length; ti++) {
+          const topic = subject.topics[ti];
+          if (!topic.subtopics) continue;
+          
+          for (let sti = 0; sti < topic.subtopics.length; sti++) {
+            const progressKey = `day_${dayNumber}_subject_${si}_topic_${ti}_subtopic_${sti}`;
+            newProgress[progressKey] = topic.subtopics[sti].checked === true;
+          }
         }
-      });
+      }
     }
-    
-    console.log('[Progress] Rebuilt progress object with', Object.keys(newProgress).length, 'items');
     setProgress(newProgress);
   }, [currentPlan]);
 
-  const handleTopicCheck = useCallback(async (dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
-    try {
-      const token = localStorage.getItem('firebaseToken');
-      if (!token) {
-        toast.error('No authentication token found');
-        return;
-      }
+  const handleTopicCheck = useCallback((dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
+    const token = localStorage.getItem('firebaseToken');
+    if (!token) {
+      toast.error('No authentication token found');
+      return;
+    }
 
-      const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIndex}_subtopic_${subtopicIndex}`;
+    const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIndex}_subtopic_${subtopicIndex}`;
 
-      // Update local state immediately for instant UI feedback
-      setProgress(prev => ({
-        ...prev,
-        [progressKey]: isChecked
-      }));
+    // Update local state immediately for instant UI feedback
+    setProgress(prev => ({
+      ...prev,
+      [progressKey]: isChecked
+    }));
 
-      // Send to server (don't wait for response - fire and forget with error handling)
-      fetch(getApiUrl(`/api/user/progress`), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          dayNumber,
-          subjectIdx,
-          topicIndex,
-          subtopicIndex,
-          completed: isChecked,
-        }),
-      }).then(async (response) => {
+    // Queue the update instead of sending immediately
+    pendingUpdates.current[progressKey] = {
+      dayNumber,
+      subjectIdx,
+      topicIndex,
+      subtopicIndex,
+      completed: isChecked,
+    };
+
+    // Clear existing timeout and set a new one for batching (300ms)
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+
+    updateTimeoutRef.current = setTimeout(async () => {
+      const updates = Object.values(pendingUpdates.current);
+      if (updates.length === 0) return;
+
+      try {
+        // Send batched updates
+        const response = await fetch(getApiUrl(`/api/user/progress`), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            batch: updates, // Send as batch
+          }),
+        });
+
         const data = await response.json();
         
         if (response.ok && data.success) {
-          // Invalidate cache so next fetch gets fresh data
+          // Invalidate cache
           localStorage.removeItem('userPlan');
           localStorage.removeItem('userPlanCacheTime');
           localStorage.removeItem('userDashboardPlan');
@@ -186,29 +194,33 @@ export default function PlanPage() {
             });
           }
         } else {
-          console.error('API response was not successful:', data);
-          toast.error('Failed to save progress');
-          // Revert local state on error
+          // Revert all changes on error
           setProgress(prev => {
             const updated = { ...prev };
-            delete updated[progressKey];
+            updates.forEach(u => {
+              const key = `day_${u.dayNumber}_subject_${u.subjectIdx}_topic_${u.topicIndex}_subtopic_${u.subtopicIndex}`;
+              delete updated[key];
+            });
             return updated;
           });
+          toast.error('Failed to save progress');
         }
-      }).catch((error) => {
-        console.error('Error updating progress:', error);
-        toast.error('Failed to update progress');
+      } catch (error) {
         // Revert on error
         setProgress(prev => {
           const updated = { ...prev };
-          delete updated[progressKey];
+          updates.forEach(u => {
+            const key = `day_${u.dayNumber}_subject_${u.subjectIdx}_topic_${u.topicIndex}_subtopic_${u.subtopicIndex}`;
+            delete updated[key];
+          });
           return updated;
         });
-      });
-    } catch (error) {
-      console.error('Error in handleTopicCheck:', error);
-      toast.error('Failed to update progress');
-    }
+        toast.error('Failed to update progress');
+      } finally {
+        // Clear the queue
+        pendingUpdates.current = {};
+      }
+    }, 300); // Wait 300ms for more updates before sending
   }, []);
 
   if (authLoading || planLoading) {
