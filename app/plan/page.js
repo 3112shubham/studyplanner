@@ -143,7 +143,7 @@ export default function PlanPage() {
     } finally {
       setPlanLoading(false);
     }
-  }, []);
+  }, [user?.uid]);
 
   const buildProgressFromPlan = useCallback(() => {
     if (!currentPlan?.days) return;
