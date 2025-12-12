@@ -26,7 +26,8 @@ export default function UploadPlanModal({ isOpen, onClose, requestId, onSuccess,
       setLoading(true);
       const token = localStorage.getItem('firebaseToken');
 
-      const response = await fetch('/api/admin/upload-plan', {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const response = await fetch(`${basePath}/api/admin/upload-plan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

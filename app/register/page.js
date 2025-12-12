@@ -33,7 +33,8 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/register', {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const response = await fetch(`${basePath}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

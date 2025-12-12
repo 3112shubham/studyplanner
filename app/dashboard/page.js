@@ -39,7 +39,8 @@ export default function DashboardPage() {
       const token = localStorage.getItem('firebaseToken');
       if (!token) return;
 
-      const response = await fetch(`/api/user/planrequest?userId=${user.uid}`, {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const response = await fetch(`${basePath}/api/user/planrequest?userId=${user.uid}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -66,8 +67,9 @@ export default function DashboardPage() {
         return;
       }
 
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
       console.log('Fetching plan for user:', user?.uid);
-      const response = await fetch(`/api/user/currentplan`, {
+      const response = await fetch(`${basePath}/api/user/currentplan`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -203,7 +205,8 @@ export default function DashboardPage() {
 
       console.log('Sending plan request:', payload);
 
-      const response = await fetch('/api/user/planrequest', {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const response = await fetch(`${basePath}/api/user/planrequest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

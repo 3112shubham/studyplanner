@@ -38,7 +38,8 @@ export default function AdminDashboard() {
   const fetchRequests = async () => {
     try {
       const token = localStorage.getItem('firebaseToken');
-      const response = await fetch('/api/admin/requests', {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const response = await fetch(`${basePath}/api/admin/requests`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -62,7 +63,8 @@ export default function AdminDashboard() {
   const handleStatusUpdate = async (requestId, newStatus) => {
     try {
       const token = localStorage.getItem('firebaseToken');
-      const response = await fetch('/api/admin/update-request', {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const response = await fetch(`${basePath}/api/admin/update-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,7 +96,8 @@ export default function AdminDashboard() {
   const handleCopyPrompt = async (request) => {
     setGeneratingPrompt(true);
     try {
-      const response = await fetch('/api/admin/generate-prompt', {
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const response = await fetch(`${basePath}/api/admin/generate-prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
