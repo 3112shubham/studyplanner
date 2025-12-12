@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { getApiUrl } from '@/lib/api';
 import Navbar from '@/components/Common/Navbar';
 import UploadPlanModal from '@/components/Admin/UploadPlanModal';
 import toast from 'react-hot-toast';
@@ -38,7 +39,7 @@ export default function AdminDashboard() {
   const fetchRequests = async () => {
     try {
       const token = localStorage.getItem('firebaseToken');
-      const response = await fetch('/api/admin/requests', {
+      const response = await fetch(getApiUrl('/api/admin/requests'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -62,7 +63,7 @@ export default function AdminDashboard() {
   const handleStatusUpdate = async (requestId, newStatus) => {
     try {
       const token = localStorage.getItem('firebaseToken');
-      const response = await fetch('/api/admin/update-request', {
+      const response = await fetch(getApiUrl('/api/admin/update-request'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,7 +95,7 @@ export default function AdminDashboard() {
   const handleCopyPrompt = async (request) => {
     setGeneratingPrompt(true);
     try {
-      const response = await fetch('/api/admin/generate-prompt', {
+      const response = await fetch(getApiUrl('/api/admin/generate-prompt'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

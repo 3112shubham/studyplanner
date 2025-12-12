@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Upload } from 'lucide-react';
+import { getApiUrl } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 export default function UploadPlanModal({ isOpen, onClose, requestId, onSuccess, userName }) {
@@ -26,7 +27,7 @@ export default function UploadPlanModal({ isOpen, onClose, requestId, onSuccess,
       setLoading(true);
       const token = localStorage.getItem('firebaseToken');
 
-      const response = await fetch('/api/admin/upload-plan', {
+      const response = await fetch(getApiUrl('/api/admin/upload-plan'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

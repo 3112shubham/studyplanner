@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { getApiUrl } from '@/lib/api';
 import Link from 'next/link';
 
 export default function RegisterPage() {
@@ -33,7 +34,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
