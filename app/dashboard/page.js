@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getApiUrl } from '@/lib/api';
@@ -27,18 +27,35 @@ export default function DashboardPage() {
     }
   }, [authLoading, user, router]);
 
-  // Fetch the user's plan
+  // Fetch the user's plan - only once on mount
   useEffect(() => {
-    if (user?.uid && authLoading === false) {
+    if (user?.uid && authLoading === false && !currentPlan && !pendingRequest) {
       fetchUserPlan();
       checkPendingRequest();
     }
-  }, [user?.uid, authLoading]);
+  }, [user?.uid, authLoading, currentPlan, pendingRequest]);
 
-  const checkPendingRequest = async () => {
+  const checkPendingRequest = useCallback(async () => {
     try {
       const token = localStorage.getItem('firebaseToken');
       if (!token) return;
+
+      // Check cache
+      const cachedRequest = localStorage.getItem('userPendingRequest');
+      const cacheTime = localStorage.getItem('userPendingRequestCacheTime');
+      const cacheExpiry = 2 * 60 * 1000; // 2 minutes
+      
+      if (cachedRequest && cacheTime) {
+        const timeSinceCached = Date.now() - parseInt(cacheTime);
+        if (timeSinceCached < cacheExpiry) {
+          console.log('[Cache] Using cached pending request');
+          const cached = JSON.parse(cachedRequest);
+          if (cached.hasPendingRequest) {
+            setPendingRequest(cached.status);
+          }
+          return;
+        }
+      }
 
       const response = await fetch(getApiUrl(`/api/user/planrequest?userId=${user.uid}`), {
         method: 'GET',
@@ -51,13 +68,16 @@ export default function DashboardPage() {
       const data = await response.json();
       if (data.success && data.hasPendingRequest) {
         setPendingRequest(data.status);
+        // Cache the request
+        localStorage.setItem('userPendingRequest', JSON.stringify(data));
+        localStorage.setItem('userPendingRequestCacheTime', Date.now().toString());
       }
     } catch (error) {
       console.error('Error checking pending request:', error);
     }
-  };
+  }, [user?.uid]);
 
-  const fetchUserPlan = async () => {
+  const fetchUserPlan = useCallback(async () => {
     try {
       setPlanLoading(true);
       const token = localStorage.getItem('firebaseToken');
@@ -65,6 +85,23 @@ export default function DashboardPage() {
         console.error('No token found');
         setPlanLoading(false);
         return;
+      }
+
+      // Check cache first
+      const cachedPlan = localStorage.getItem('userDashboardPlan');
+      const cacheTime = localStorage.getItem('userDashboardPlanCacheTime');
+      const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+      
+      if (cachedPlan && cacheTime) {
+        const timeSinceCached = Date.now() - parseInt(cacheTime);
+        if (timeSinceCached < cacheExpiry) {
+          console.log('[Cache] Using cached dashboard plan');
+          const plan = JSON.parse(cachedPlan);
+          setCurrentPlan(plan);
+          calculateStats(plan);
+          setPlanLoading(false);
+          return;
+        }
       }
 
       console.log('Fetching plan for user:', user?.uid);
@@ -78,12 +115,6 @@ export default function DashboardPage() {
 
       console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', {
-        success: data.success,
-        hasPlan: !!data.plan,
-        daysCount: data.plan?.days?.length,
-        error: data.error,
-      });
       
       if (!response.ok) {
         console.error('API Error:', data);
@@ -91,11 +122,11 @@ export default function DashboardPage() {
         setCurrentPlan(null);
         setPendingRequest(null);
       } else if (data.success && data.plan) {
-        console.log('✅ Plan received successfully:', {
-          planId: data.plan.planId,
-          totalDays: data.plan.totalDays,
-          firstDay: data.plan.days?.[0]?.title,
-        });
+        console.log('✅ Plan received successfully');
+        // Cache the plan
+        localStorage.setItem('userDashboardPlan', JSON.stringify(data.plan));
+        localStorage.setItem('userDashboardPlanCacheTime', Date.now().toString());
+        
         setCurrentPlan(data.plan);
         setPendingRequest(null); // Clear pending request if plan exists
         calculateStats(data.plan);
@@ -110,11 +141,9 @@ export default function DashboardPage() {
     } finally {
       setPlanLoading(false);
     }
-  };
+  }, [user?.uid]);
 
-  const calculateStats = (plan) => {
-    console.log('calculateStats called with plan:', plan);
-    
+  const calculateStats = useCallback((plan) => {
     // Calculate total and completed subtopics from plan structure
     try {
       let totalSubtopics = 0;
@@ -173,15 +202,15 @@ export default function DashboardPage() {
         progressPercentage: 0,
       });
     }
-  };
+  }, []);
 
-  const fetchProgressStats = async () => {
+  const fetchProgressStats = useCallback(async () => {
     // Progress stats are now calculated directly from the plan in calculateStats
     // This function is kept for backward compatibility but does nothing
     console.log('fetchProgressStats called - stats are calculated from plan data');
-  };
+  }, []);
 
-  const handlePlanRequestSubmit = async (planData) => {
+  const handlePlanRequestSubmit = useCallback(async (planData) => {
     try {
       if (!user?.uid) {
         toast.error('User not authenticated');
@@ -232,14 +261,14 @@ export default function DashboardPage() {
       toast.error('An error occurred while submitting plan request');
       console.error('Plan request error:', error);
     }
-  };
+  }, [user?.uid, userData?.name]);
 
-  const toggleDayExpanded = (dayNumber) => {
+  const toggleDayExpanded = useCallback((dayNumber) => {
     setExpandedDays(prev => ({
       ...prev,
       [dayNumber]: !prev[dayNumber]
     }));
-  };
+  }, []);
 
   if (authLoading || planLoading) {
     return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getApiUrl } from '@/lib/api';
@@ -23,21 +23,32 @@ export default function PlanPage() {
     }
   }, [authLoading, user, router]);
 
-  // Fetch the user's plan and progress
+  // Fetch the user's plan and progress - only fetch once on mount
   useEffect(() => {
-    if (user?.uid && authLoading === false) {
+    if (user?.uid && authLoading === false && !currentPlan) {
       fetchUserPlan();
     }
-  }, [user?.uid, authLoading]);
+  }, [user?.uid, authLoading, currentPlan]);
 
   // Build progress object whenever plan changes
   useEffect(() => {
     if (currentPlan) {
-      fetchProgress();
+      buildProgressFromPlan();
     }
   }, [currentPlan]);
 
-  const fetchUserPlan = async () => {
+  // Ensure day 1 is selected by default when plan loads
+  useEffect(() => {
+    if (currentPlan && currentPlan.days && currentPlan.days.length > 0) {
+      // Find the first day or set to 1
+      const firstDay = currentPlan.days[0];
+      const dayNumberToSelect = firstDay.dayNumber || 1;
+      setSelectedDay(dayNumberToSelect);
+      console.log('[Plan] Set default selected day to:', dayNumberToSelect);
+    }
+  }, [currentPlan]);
+
+  const fetchUserPlan = useCallback(async () => {
     try {
       setPlanLoading(true);
       const token = localStorage.getItem('firebaseToken');
@@ -45,6 +56,21 @@ export default function PlanPage() {
         console.error('No token found');
         setPlanLoading(false);
         return;
+      }
+
+      // Check if plan is already cached in localStorage
+      const cachedPlan = localStorage.getItem('userPlan');
+      const cacheTimestamp = localStorage.getItem('userPlanCacheTime');
+      const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+      
+      if (cachedPlan && cacheTimestamp) {
+        const timeSinceCached = Date.now() - parseInt(cacheTimestamp);
+        if (timeSinceCached < cacheExpiry) {
+          console.log('[Cache] Using cached plan data');
+          setCurrentPlan(JSON.parse(cachedPlan));
+          setPlanLoading(false);
+          return;
+        }
       }
 
       const response = await fetch(getApiUrl(`/api/user/currentplan`), {
@@ -63,6 +89,10 @@ export default function PlanPage() {
         setCurrentPlan(null);
       } else if (data.success && data.plan) {
         console.log('Plan fetched:', data.plan);
+        // Cache the plan
+        localStorage.setItem('userPlan', JSON.stringify(data.plan));
+        localStorage.setItem('userPlanCacheTime', Date.now().toString());
+        
         setCurrentPlan(data.plan);
         // Set first day as selected
         if (data.plan.days && data.plan.days.length > 0) {
@@ -78,40 +108,36 @@ export default function PlanPage() {
     } finally {
       setPlanLoading(false);
     }
-  };
+  }, []);
 
-  const fetchProgress = async () => {
-    try {
-      // Build progress object from current plan's subtopics
-      const newProgress = {};
-      
-      if (currentPlan && currentPlan.days) {
-        currentPlan.days.forEach((day) => {
-          const dayNumber = day.dayNumber;
-          if (day.subtopics && Array.isArray(day.subtopics)) {
-            day.subtopics.forEach((subject, subjectIdx) => {
-              if (subject.topics && Array.isArray(subject.topics)) {
-                subject.topics.forEach((topic, topicIdx) => {
-                  if (topic.subtopics && Array.isArray(topic.subtopics)) {
-                    topic.subtopics.forEach((subtopic, subtopicIdx) => {
-                      const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
-                      // Check if subtopic is explicitly marked as true
-                      newProgress[progressKey] = subtopic.checked === true;
-                    });
-                  }
-                });
-              }
-            });
-          }
-        });
-      }
-      
-      console.log('Rebuilt progress object:', newProgress);
-      setProgress(newProgress);
-    } catch (error) {
-      console.error('Error building progress from plan:', error);
+  const buildProgressFromPlan = useCallback(() => {
+    // Build progress object from current plan's subtopics
+    const newProgress = {};
+    
+    if (currentPlan && currentPlan.days) {
+      currentPlan.days.forEach((day) => {
+        const dayNumber = day.dayNumber;
+        if (day.subtopics && Array.isArray(day.subtopics)) {
+          day.subtopics.forEach((subject, subjectIdx) => {
+            if (subject.topics && Array.isArray(subject.topics)) {
+              subject.topics.forEach((topic, topicIdx) => {
+                if (topic.subtopics && Array.isArray(topic.subtopics)) {
+                  topic.subtopics.forEach((subtopic, subtopicIdx) => {
+                    const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIdx}_subtopic_${subtopicIdx}`;
+                    // Check if subtopic is explicitly marked as true
+                    newProgress[progressKey] = subtopic.checked === true;
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
     }
-  };
+    
+    console.log('[Progress] Rebuilt progress object with', Object.keys(newProgress).length, 'items');
+    setProgress(newProgress);
+  }, [currentPlan]);
 
   const handleTopicCheck = async (dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
     try {
@@ -206,7 +232,7 @@ export default function PlanPage() {
     );
   }
 
-  const currentDayPlan = currentPlan.days?.find(day => day.dayNumber === selectedDay);
+  const currentDayPlan = currentPlan.days?.find(day => day.dayNumber === selectedDay) || currentPlan.days?.[0];
 
   // Calculate overall progress across all days
   let totalAllSubtopics = 0;
