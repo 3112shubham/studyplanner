@@ -262,6 +262,23 @@ export default function DashboardPage() {
     return null;
   }
 
+  // Show loader while loading
+  if (authLoading || planLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+          </div>
+          <p className="mt-4 text-gray-600 font-medium">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
