@@ -216,30 +216,9 @@ export default function PlanPage() {
                 subtopics: subtopicsArray
               });
 
-              // Update cache instead of clearing it - keeps dashboard fast
-              const cachedPlan = localStorage.getItem('userPlan');
-              if (cachedPlan) {
-                try {
-                  const plan = JSON.parse(cachedPlan);
-                  if (plan.days) {
-                    // Find and update the day in cache
-                    const dayInCache = plan.days.find(d => d.dayNumber === dayNumber);
-                    if (dayInCache && dayInCache.subtopics) {
-                      if (dayInCache.subtopics[subjectIdx]?.topics?.[topicIndex]?.subtopics?.[subtopicIndex]) {
-                        dayInCache.subtopics[subjectIdx].topics[topicIndex].subtopics[subtopicIndex].checked = isChecked;
-                        localStorage.setItem('userPlan', JSON.stringify(plan));
-                        localStorage.setItem('userPlanCacheTime', Date.now().toString());
-                      }
-                    }
-                  }
-                } catch (cacheErr) {
-                  // If cache update fails, clear it
-                  localStorage.removeItem('userPlan');
-                  localStorage.removeItem('userPlanCacheTime');
-                }
-              }
-
-              // Also invalidate dashboard cache since progress changed
+              // Invalidate plan cache so next fetch gets fresh data
+              localStorage.removeItem('userPlan');
+              localStorage.removeItem('userPlanCacheTime');
               localStorage.removeItem('userDashboardPlan');
               localStorage.removeItem('userDashboardPlanCacheTime');
 
