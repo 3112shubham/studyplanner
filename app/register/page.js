@@ -62,7 +62,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 flex items-top justify-center py-6 sm:py-6 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 flex items-bottom justify-center pt-20 pb-6 px-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand Section */}
         <div className="text-center">

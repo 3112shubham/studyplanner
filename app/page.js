@@ -41,7 +41,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+    <div className="min-h-screen pt-16 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-600 to-blue-700 text-white py-12 sm:py-24">
         <div className="container mx-auto px-4 text-center">

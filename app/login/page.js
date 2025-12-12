@@ -52,7 +52,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 flex items-top justify-center pt-6 sm:py-6 px-4">
+    <div className="min-h-screen sm:pt-16 bg-gradient-to-br from-blue-50 via-slate-50 to-blue-100 flex items-center justify-center pt-6 sm:py-6 px-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand Section */}
         <div className="text-center mb-8">

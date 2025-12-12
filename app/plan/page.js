@@ -380,7 +380,7 @@ export default function PlanPage() {
   const overallProgressPercentage = totalAllSubtopics > 0 ? Math.round((completedAllSubtopics / totalAllSubtopics) * 100) : 0;
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen pt-16 bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Floating Back Button - Desktop Only */}
       <button
         onClick={() => router.push('/dashboard')}

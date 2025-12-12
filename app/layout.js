@@ -29,7 +29,8 @@ export default function RootLayout({ children }) {
             />
             <div className="bg-white">
               <Navbar />
-              <main className="pt-16">
+            
+              <main className="">
                 {children}
               </main>
             </div>

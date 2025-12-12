@@ -287,7 +287,7 @@ export default function DashboardPage() {
 
   if (authLoading || planLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50 flex items-center justify-center px-4">
         <style>{`
           @keyframes float {
             0%, 100% { transform: translateY(0px); }
@@ -323,7 +323,7 @@ export default function DashboardPage() {
         
         <div className="text-center">
           {/* Main Loading Icon */}
-          <div className="mb-8 relative w-32 h-32 mx-auto">
+          <div className="mb-4 sm:mb-8 relative w-24 sm:w-32 h-24 sm:h-32 mx-auto">
             {/* Outer rotating circle */}
             <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-500 spin-slow"></div>
             
@@ -337,26 +337,26 @@ export default function DashboardPage() {
           </div>
 
           {/* Animated text */}
-          <div className="mb-8">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2">
+          <div className="mb-4 sm:mb-8">
+            <h2 className="text-xl sm:text-4xl font-bold text-gray-800 mb-1 sm:mb-2">
               Preparing Your Dashboard
             </h2>
-            <p className="text-gray-600 text-lg mb-4">
+            <p className="text-gray-600 text-xs sm:text-lg mb-3 sm:mb-4">
               Loading your personalized study insights
             </p>
             
             {/* Animated dots */}
-            <div className="flex justify-center gap-2">
-              <div className="float-1 w-3 h-3 bg-blue-600 rounded-full"></div>
-              <div className="float-2 w-3 h-3 bg-purple-500 rounded-full"></div>
-              <div className="float-3 w-3 h-3 bg-pink-500 rounded-full"></div>
-              <div className="float-4 w-3 h-3 bg-blue-400 rounded-full"></div>
+            <div className="flex justify-center gap-1 sm:gap-2 pt-6">
+              <div className="float-1 w-2 h-2 sm:w-3 sm:h-3 bg-blue-600 rounded-full"></div>
+              <div className="float-2 w-2 h-2 sm:w-3 sm:h-3 bg-purple-500 rounded-full"></div>
+              <div className="float-3 w-2 h-2 sm:w-3 sm:h-3 bg-pink-500 rounded-full"></div>
+              <div className="float-4 w-2 h-2 sm:w-3 sm:h-3 bg-blue-400 rounded-full"></div>
             </div>
           </div>
 
           {/* Progress bar with gradient animation */}
-          <div className="w-64 sm:w-80 mx-auto">
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="w-48 sm:w-64 sm:w-80 mx-auto">
+            <div className="w-full h-1 sm:h-2 bg-gray-200 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
                 style={{
@@ -366,11 +366,11 @@ export default function DashboardPage() {
                 }}
               ></div>
             </div>
-            <p className="text-sm text-gray-500 mt-3">This usually takes a few seconds...</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">This usually takes a few seconds...</p>
           </div>
 
           {/* Fun facts while loading */}
-          <div className="mt-8 text-sm text-gray-600 max-w-sm mx-auto">
+          <div className="mt-4 sm:mt-8 text-xs sm:text-sm text-gray-600 max-w-xs mx-auto">
             <p className="italic">💡 Did you know? Consistent daily practice is the key to GATE success!</p>
           </div>
         </div>
@@ -400,7 +400,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50">
+    <div className="min-h-screen pt-16 bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 pt-6">
         {/* Welcome Header with Refresh Button */}
         <div className="mb-6 sm:mb-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl sm:rounded-2xl p-4 sm:p-8 text-white shadow-lg relative">
