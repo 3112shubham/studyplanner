@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getApiUrl } from '@/lib/api';
+import { db } from '@/lib/firebase/config';
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { ChevronLeft, Check } from 'lucide-react';
 import PlanViewer from '@/components/User/PlanViewer';
@@ -24,8 +26,6 @@ export default function PlanPage() {
   const [planLoading, setPlanLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [progress, setProgress] = useState({});
-  const pendingUpdates = useRef({}); // Queue for batched updates
-  const updateTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -133,9 +133,8 @@ export default function PlanPage() {
   }, [currentPlan]);
 
   const handleTopicCheck = useCallback((dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
-    const token = localStorage.getItem('firebaseToken');
-    if (!token) {
-      toast.error('No authentication token found');
+    if (!user?.uid) {
+      toast.error('User not authenticated');
       return;
     }
 
@@ -147,81 +146,63 @@ export default function PlanPage() {
       [progressKey]: isChecked
     }));
 
-    // Queue the update instead of sending immediately
-    pendingUpdates.current[progressKey] = {
-      dayNumber,
-      subjectIdx,
-      topicIndex,
-      subtopicIndex,
-      completed: isChecked,
-    };
-
-    // Clear existing timeout and set a new one for batching (300ms)
-    if (updateTimeoutRef.current) {
-      clearTimeout(updateTimeoutRef.current);
-    }
-
-    updateTimeoutRef.current = setTimeout(async () => {
-      const updates = Object.values(pendingUpdates.current);
-      if (updates.length === 0) return;
-
+    // Direct Firestore update - NO API CALL
+    const updateFirestore = async () => {
       try {
-        // Send batched updates
-        const response = await fetch(getApiUrl(`/api/user/progress`), {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            batch: updates, // Send as batch
-          }),
-        });
-
-        const data = await response.json();
+        const dayDocName = `Day_${String(dayNumber).padStart(2, '0')}`;
+        const dayDocRef = doc(db, 'users', user.uid, 'planDays', dayDocName);
         
-        if (response.ok && data.success) {
-          // Invalidate cache
-          localStorage.removeItem('userPlan');
-          localStorage.removeItem('userPlanCacheTime');
-          localStorage.removeItem('userDashboardPlan');
-          localStorage.removeItem('userDashboardPlanCacheTime');
-          
-          if (data.progress !== undefined) {
-            toast.success(`✓ Progress: ${data.progress}%`, {
-              duration: 1.5,
-              icon: '💾',
-            });
+        // Get current document
+        const daySnapshot = await getDoc(dayDocRef);
+        if (!daySnapshot.exists()) {
+          toast.error('Day document not found');
+          return;
+        }
+
+        const dayData = daySnapshot.data();
+        const subtopicsArray = dayData.subtopics || [];
+
+        // Navigate the nested structure and update the specific subtopic
+        if (subtopicsArray[subjectIdx]) {
+          const subject = subtopicsArray[subjectIdx];
+          if (subject.topics && subject.topics[topicIndex]) {
+            const topic = subject.topics[topicIndex];
+            if (topic.subtopics && topic.subtopics[subtopicIndex]) {
+              // Update the subtopic's checked status
+              topic.subtopics[subtopicIndex].checked = isChecked;
+              
+              // Persist back to Firestore
+              await updateDoc(dayDocRef, {
+                subtopics: subtopicsArray
+              });
+
+              // Invalidate plan cache so next fetch gets fresh data
+              localStorage.removeItem('userPlan');
+              localStorage.removeItem('userPlanCacheTime');
+              localStorage.removeItem('userDashboardPlan');
+              localStorage.removeItem('userDashboardPlanCacheTime');
+
+              toast.success(`✓ Saved`, {
+                duration: 1,
+                icon: '💾',
+              });
+            }
           }
-        } else {
-          // Revert all changes on error
-          setProgress(prev => {
-            const updated = { ...prev };
-            updates.forEach(u => {
-              const key = `day_${u.dayNumber}_subject_${u.subjectIdx}_topic_${u.topicIndex}_subtopic_${u.subtopicIndex}`;
-              delete updated[key];
-            });
-            return updated;
-          });
-          toast.error('Failed to save progress');
         }
       } catch (error) {
         // Revert on error
         setProgress(prev => {
           const updated = { ...prev };
-          updates.forEach(u => {
-            const key = `day_${u.dayNumber}_subject_${u.subjectIdx}_topic_${u.topicIndex}_subtopic_${u.subtopicIndex}`;
-            delete updated[key];
-          });
+          delete updated[progressKey];
           return updated;
         });
-        toast.error('Failed to update progress');
-      } finally {
-        // Clear the queue
-        pendingUpdates.current = {};
+        toast.error('Failed to save progress');
       }
-    }, 300); // Wait 300ms for more updates before sending
-  }, []);
+    };
+
+    // Execute Firestore update
+    updateFirestore();
+  }, [user?.uid]);
 
   if (authLoading || planLoading) {
     return (
