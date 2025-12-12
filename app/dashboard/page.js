@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { getApiUrl } from '@/lib/api';
 import toast from 'react-hot-toast';
 import PlanRequestModal from '@/components/User/PlanRequestModal';
 
@@ -39,8 +40,7 @@ export default function DashboardPage() {
       const token = localStorage.getItem('firebaseToken');
       if (!token) return;
 
-      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-      const response = await fetch(`${basePath}/api/user/planrequest?userId=${user.uid}`, {
+      const response = await fetch(getApiUrl(`/api/user/planrequest?userId=${user.uid}`), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -67,9 +67,8 @@ export default function DashboardPage() {
         return;
       }
 
-      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
       console.log('Fetching plan for user:', user?.uid);
-      const response = await fetch(`${basePath}/api/user/currentplan`, {
+      const response = await fetch(getApiUrl('/api/user/currentplan'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -205,8 +204,7 @@ export default function DashboardPage() {
 
       console.log('Sending plan request:', payload);
 
-      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-      const response = await fetch(`${basePath}/api/user/planrequest`, {
+      const response = await fetch(getApiUrl('/api/user/planrequest'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
