@@ -64,16 +64,27 @@ export default function PlanPage() {
       }
 
       // Check if plan is already cached in localStorage
-      const cachedPlan = localStorage.getItem('userPlan');
-      const cacheTimestamp = localStorage.getItem('userPlanCacheTime');
+      let cachedPlan = localStorage.getItem('userPlan');
+      let cacheTimestamp = localStorage.getItem('userPlanCacheTime');
+      
+      // If not found, check dashboard cache as fallback
+      if (!cachedPlan) {
+        cachedPlan = localStorage.getItem('userDashboardPlan');
+        cacheTimestamp = localStorage.getItem('userDashboardPlanCacheTime');
+      }
+      
       const cacheExpiry = 5 * 60 * 1000; // 5 minutes
       
       if (cachedPlan && cacheTimestamp) {
         const timeSinceCached = Date.now() - parseInt(cacheTimestamp);
         if (timeSinceCached < cacheExpiry) {
-          setCurrentPlan(JSON.parse(cachedPlan));
-          setPlanLoading(false);
-          return;
+          const parsedPlan = JSON.parse(cachedPlan);
+          // Ensure plan has days array
+          if (parsedPlan.days) {
+            setCurrentPlan(parsedPlan);
+            setPlanLoading(false);
+            return;
+          }
         }
       }
 
@@ -126,7 +137,6 @@ export default function PlanPage() {
       localStorage.setItem('userPlan', JSON.stringify(plan));
       localStorage.setItem('userPlanCacheTime', Date.now().toString());
       setCurrentPlan(plan);
-      }
     } catch (error) {
       toast.error('Error loading plan');
       setCurrentPlan(null);
