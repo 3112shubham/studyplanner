@@ -57,8 +57,8 @@ export default function PlanPage() {
   const fetchUserPlan = useCallback(async () => {
     try {
       setPlanLoading(true);
-      const token = localStorage.getItem('firebaseToken');
-      if (!token) {
+      
+      if (!user?.uid) {
         setPlanLoading(false);
         return;
       }
@@ -77,24 +77,35 @@ export default function PlanPage() {
         }
       }
 
-      const response = await fetch(getApiUrl(`/api/user/currentplan`), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      // Fetch directly from Firestore - MUCH FASTER
+      const userDocRef = doc(db, 'users', user.uid);
+      const userSnapshot = await getDoc(userDocRef);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to load plan');
+      if (!userSnapshot.exists()) {
         setCurrentPlan(null);
-      } else if (data.success && data.plan) {
+        setPlanLoading(false);
+        return;
+      }
+
+      const userData = userSnapshot.data();
+      const planId = userData.currentPlan;
+
+      if (!planId) {
+        setCurrentPlan(null);
+        setPlanLoading(false);
+        return;
+      }
+
+      // Get the actual plan document
+      const planDocRef = doc(db, 'studyPlans', planId);
+      const planSnapshot = await getDoc(planDocRef);
+
+      if (planSnapshot.exists()) {
+        const plan = planSnapshot.data();
         // Cache the plan
-        localStorage.setItem('userPlan', JSON.stringify(data.plan));
+        localStorage.setItem('userPlan', JSON.stringify(plan));
         localStorage.setItem('userPlanCacheTime', Date.now().toString());
-        setCurrentPlan(data.plan);
+        setCurrentPlan(plan);
       } else {
         setCurrentPlan(null);
       }

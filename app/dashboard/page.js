@@ -72,7 +72,7 @@ export default function DashboardPage() {
         localStorage.setItem('userPendingRequestCacheTime', Date.now().toString());
       }
     } catch (error) {
-      console.error('Error checking pending request:', error);
+      // Silent fail
     }
   }, [user?.uid]);
 
@@ -81,7 +81,6 @@ export default function DashboardPage() {
       setPlanLoading(true);
       const token = localStorage.getItem('firebaseToken');
       if (!token) {
-        console.error('No token found');
         setPlanLoading(false);
         return;
       }
@@ -94,7 +93,6 @@ export default function DashboardPage() {
       if (cachedPlan && cacheTime) {
         const timeSinceCached = Date.now() - parseInt(cacheTime);
         if (timeSinceCached < cacheExpiry) {
-          console.log('[Cache] Using cached dashboard plan');
           const plan = JSON.parse(cachedPlan);
           setCurrentPlan(plan);
           calculateStats(plan);
@@ -103,7 +101,6 @@ export default function DashboardPage() {
         }
       }
 
-      console.log('Fetching plan for user:', user?.uid);
       const response = await fetch(getApiUrl('/api/user/currentplan'), {
         method: 'GET',
         headers: {
@@ -112,16 +109,13 @@ export default function DashboardPage() {
         },
       });
 
-      console.log('Response status:', response.status);
       const data = await response.json();
       
       if (!response.ok) {
-        console.error('API Error:', data);
         toast.error(data.error || 'Failed to load plan');
         setCurrentPlan(null);
         setPendingRequest(null);
       } else if (data.success && data.plan) {
-        console.log('✅ Plan received successfully');
         // Cache the plan
         localStorage.setItem('userDashboardPlan', JSON.stringify(data.plan));
         localStorage.setItem('userDashboardPlanCacheTime', Date.now().toString());
@@ -130,11 +124,9 @@ export default function DashboardPage() {
         setPendingRequest(null); // Clear pending request if plan exists
         calculateStats(data.plan);
       } else {
-        console.log('No plan found in response');
         setCurrentPlan(null);
       }
     } catch (error) {
-      console.error('Error fetching plan:', error);
       toast.error('Error loading plan');
       setCurrentPlan(null);
     } finally {
@@ -149,8 +141,6 @@ export default function DashboardPage() {
       let completedSubtopics = 0;
 
       if (plan && plan.days && Array.isArray(plan.days) && plan.days.length > 0) {
-        console.log('Processing', plan.days.length, 'days');
-        
         plan.days.forEach((day, dayIdx) => {
           try {
             if (day.subtopics && Array.isArray(day.subtopics) && day.subtopics.length > 0) {
@@ -172,12 +162,10 @@ export default function DashboardPage() {
               });
             }
           } catch (dayError) {
-            console.error(`Error processing day ${dayIdx}:`, dayError);
+            // Skip on error
           }
         });
 
-        console.log('Final totals - completed:', completedSubtopics, 'total:', totalSubtopics);
-        
         const progressPercentage = totalSubtopics > 0 ? Math.round((completedSubtopics / totalSubtopics) * 100) : 0;
 
         setStats({
@@ -186,7 +174,6 @@ export default function DashboardPage() {
           progressPercentage: progressPercentage,
         });
       } else {
-        console.log('Plan has no days or is empty');
         setStats({
           completedTopics: 0,
           totalTopics: 0,
@@ -194,7 +181,6 @@ export default function DashboardPage() {
         });
       }
     } catch (error) {
-      console.error('Error in calculateStats:', error);
       setStats({
         completedTopics: 0,
         totalTopics: 0,
@@ -206,7 +192,6 @@ export default function DashboardPage() {
   const fetchProgressStats = useCallback(async () => {
     // Progress stats are now calculated directly from the plan in calculateStats
     // This function is kept for backward compatibility but does nothing
-    console.log('fetchProgressStats called - stats are calculated from plan data');
   }, []);
 
   const handlePlanRequestSubmit = useCallback(async (planData) => {
@@ -230,8 +215,6 @@ export default function DashboardPage() {
         topicStrengths: planData.topicStrengths,
       };
 
-      console.log('Sending plan request:', payload);
-
       const response = await fetch(getApiUrl('/api/user/planrequest'), {
         method: 'POST',
         headers: {
@@ -244,7 +227,6 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('API Error:', data);
         toast.error(data.error || 'Failed to create plan request');
         // If there's a pending request, update the status
         if (data.hasPendingRequest) {
@@ -258,7 +240,6 @@ export default function DashboardPage() {
       setShowPlanModal(false);
     } catch (error) {
       toast.error('An error occurred while submitting plan request');
-      console.error('Plan request error:', error);
     }
   }, [user?.uid, userData?.name]);
 
