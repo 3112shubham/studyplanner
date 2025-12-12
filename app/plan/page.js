@@ -26,6 +26,7 @@ export default function PlanPage() {
   const [planLoading, setPlanLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(1);
   const [progress, setProgress] = useState({});
+  const offlineQueueRef = useRef([]); // Queue for offline updates
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -190,18 +191,71 @@ export default function PlanPage() {
           }
         }
       } catch (error) {
-        // Revert on error
-        setProgress(prev => {
-          const updated = { ...prev };
-          delete updated[progressKey];
-          return updated;
-        });
-        toast.error('Failed to save progress');
+        // If offline, queue the update
+        if (!navigator.onLine) {
+          offlineQueueRef.current.push({
+            dayNumber,
+            subjectIdx,
+            topicIndex,
+            subtopicIndex,
+            isChecked,
+            timestamp: Date.now()
+          });
+          toast.info('Offline - will sync when online', { duration: 2 });
+        } else {
+          // Revert on error
+          setProgress(prev => {
+            const updated = { ...prev };
+            delete updated[progressKey];
+            return updated;
+          });
+          toast.error('Failed to save progress');
+        }
       }
     };
 
     // Execute Firestore update
     updateFirestore();
+  }, [user?.uid]);
+
+  // Handle online/offline transitions
+  useEffect(() => {
+    const syncOfflineQueue = async () => {
+      if (!navigator.onLine || offlineQueueRef.current.length === 0) return;
+
+      const queue = [...offlineQueueRef.current];
+      
+      for (const update of queue) {
+        try {
+          const dayDocName = `Day_${String(update.dayNumber).padStart(2, '0')}`;
+          const dayDocRef = doc(db, 'users', user.uid, 'planDays', dayDocName);
+          
+          const daySnapshot = await getDoc(dayDocRef);
+          if (!daySnapshot.exists()) continue;
+
+          const dayData = daySnapshot.data();
+          const subtopicsArray = dayData.subtopics || [];
+
+          if (subtopicsArray[update.subjectIdx]?.topics?.[update.topicIndex]?.subtopics?.[update.subtopicIndex]) {
+            subtopicsArray[update.subjectIdx].topics[update.topicIndex].subtopics[update.subtopicIndex].checked = update.isChecked;
+            
+            await updateDoc(dayDocRef, { subtopics: subtopicsArray });
+            offlineQueueRef.current = offlineQueueRef.current.filter(u => u.timestamp !== update.timestamp);
+          }
+        } catch (error) {
+          // Keep trying
+        }
+      }
+
+      if (offlineQueueRef.current.length === 0) {
+        toast.success('All offline changes synced!', { duration: 2 });
+        localStorage.removeItem('userPlan');
+        localStorage.removeItem('userPlanCacheTime');
+      }
+    };
+
+    window.addEventListener('online', syncOfflineQueue);
+    return () => window.removeEventListener('online', syncOfflineQueue);
   }, [user?.uid]);
 
   if (authLoading || planLoading) {
