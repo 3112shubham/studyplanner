@@ -290,14 +290,35 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Welcome Header */}
-        <div className="mb-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg">
-          <h1 className="text-4xl md:text-5xl font-bold mb-2">
-            Welcome back👋
-          </h1>
-          <p className="text-blue-100 text-lg">
-            Your personalized GATE CSE study journey
-          </p>
+        {/* Welcome Header with Refresh Button */}
+        <div className="mb-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white shadow-lg flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold mb-2">
+              Welcome back👋
+            </h1>
+            <p className="text-blue-100 text-lg">
+              Your personalized GATE CSE study journey
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              // Clear cache for current user
+              const cacheKeyPlan = `userDashboardPlan_${user.uid}`;
+              const cacheKeyTime = `userDashboardPlanCacheTime_${user.uid}`;
+              localStorage.removeItem(cacheKeyPlan);
+              localStorage.removeItem(cacheKeyTime);
+              // Refetch data
+              fetchUserPlan();
+              checkPendingRequest();
+            }}
+            className="bg-white hover:bg-blue-50 text-blue-600 font-semibold py-2 px-4 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap"
+            title="Refresh data from database"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
         </div>
 
         {/* Stats Cards Grid */}
