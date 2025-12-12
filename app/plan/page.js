@@ -327,8 +327,93 @@ export default function PlanPage() {
 
   if (authLoading || planLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading plan...</div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
+        <style>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+          }
+          @keyframes float-delay-1 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+          }
+          @keyframes float-delay-2 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+          }
+          @keyframes float-delay-3 {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+          }
+          @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes pulse-scale {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+          }
+          .float-1 { animation: float 3s ease-in-out infinite; }
+          .float-2 { animation: float-delay-1 3s ease-in-out infinite 0.2s; }
+          .float-3 { animation: float-delay-2 3s ease-in-out infinite 0.4s; }
+          .float-4 { animation: float-delay-3 3s ease-in-out infinite 0.6s; }
+          .spin-slow { animation: spin-slow 4s linear infinite; }
+          .pulse-scale { animation: pulse-scale 2s ease-in-out infinite; }
+        `}</style>
+        
+        <div className="text-center">
+          {/* Main Loading Icon */}
+          <div className="mb-4 sm:mb-8 relative w-24 sm:w-32 h-24 sm:h-32 mx-auto">
+            {/* Outer rotating circle */}
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 border-r-blue-500 spin-slow"></div>
+            
+            {/* Middle circle */}
+            <div className="absolute inset-4 rounded-full border-3 border-transparent border-b-purple-500 border-l-purple-400" style={{animation: 'spin-slow 3s linear infinite reverse'}}></div>
+            
+            {/* Inner pulsing circle */}
+            <div className="absolute inset-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 pulse-scale flex items-center justify-center text-white text-2xl">
+              📚
+            </div>
+          </div>
+
+          {/* Animated text */}
+          <div className="mb-4 sm:mb-8">
+            <h2 className="text-xl sm:text-4xl font-bold text-gray-800 mb-1 sm:mb-2">
+              Loading Your Study Plan
+            </h2>
+            <p className="text-gray-600 text-xs sm:text-lg mb-3 sm:mb-4">
+              Preparing your personalized learning journey
+            </p>
+            
+            {/* Animated dots */}
+            <div className="flex justify-center gap-1 sm:gap-2">
+              <div className="float-1 w-2 h-2 sm:w-3 sm:h-3 bg-blue-600 rounded-full"></div>
+              <div className="float-2 w-2 h-2 sm:w-3 sm:h-3 bg-purple-500 rounded-full"></div>
+              <div className="float-3 w-2 h-2 sm:w-3 sm:h-3 bg-pink-500 rounded-full"></div>
+              <div className="float-4 w-2 h-2 sm:w-3 sm:h-3 bg-blue-400 rounded-full"></div>
+            </div>
+          </div>
+
+          {/* Progress bar with gradient animation */}
+          <div className="w-48 sm:w-64 sm:w-80 mx-auto">
+            <div className="w-full h-1 sm:h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full"
+                style={{
+                  animation: 'linear infinite',
+                  backgroundSize: '200% 200%',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                }}
+              ></div>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-500 mt-2">This usually takes a few seconds...</p>
+          </div>
+
+          {/* Fun facts while loading */}
+          <div className="mt-4 sm:mt-8 text-xs sm:text-sm text-gray-600 max-w-xs mx-auto">
+            <p className="italic">💡 Did you know? Breaking study into smaller chunks boosts retention!</p>
+          </div>
+        </div>
       </div>
     );
   }
