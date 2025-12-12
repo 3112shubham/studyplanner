@@ -139,7 +139,7 @@ export default function PlanPage() {
     setProgress(newProgress);
   }, [currentPlan]);
 
-  const handleTopicCheck = async (dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
+  const handleTopicCheck = useCallback(async (dayNumber, subjectIdx, topicIndex, subtopicIndex, isChecked) => {
     try {
       const token = localStorage.getItem('firebaseToken');
       if (!token) {
@@ -150,18 +150,13 @@ export default function PlanPage() {
       const progressKey = `day_${dayNumber}_subject_${subjectIdx}_topic_${topicIndex}_subtopic_${subtopicIndex}`;
 
       // Update local state immediately for instant UI feedback
-      setProgress(prev => {
-        const updated = {
-          ...prev,
-          [progressKey]: isChecked
-        };
-        console.log('Updated local progress:', { progressKey, isChecked, allProgress: Object.keys(updated) });
-        return updated;
-      });
+      setProgress(prev => ({
+        ...prev,
+        [progressKey]: isChecked
+      }));
 
-      // Send to server
-      console.log('Sending progress update:', { dayNumber, subjectIdx, topicIndex, subtopicIndex, completed: isChecked });
-      const response = await fetch(getApiUrl(`/api/user/progress`), {
+      // Send to server (don't wait for response - fire and forget with error handling)
+      fetch(getApiUrl(`/api/user/progress`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -174,40 +169,47 @@ export default function PlanPage() {
           subtopicIndex,
           completed: isChecked,
         }),
-      });
-
-      console.log('Progress API response status:', response.status, response.ok);
-      
-      const data = await response.json();
-      console.log('Progress API response data:', data);
-      
-      if (response.ok && data.success) {
-        // Just show success message - local state already updated
-        if (data.progress !== undefined) {
-          toast.success(`✓ Saved! Overall progress: ${data.progress}%`, {
-            duration: 2,
-            icon: '💾',
-          });
+      }).then(async (response) => {
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // Invalidate cache so next fetch gets fresh data
+          localStorage.removeItem('userPlan');
+          localStorage.removeItem('userPlanCacheTime');
+          localStorage.removeItem('userDashboardPlan');
+          localStorage.removeItem('userDashboardPlanCacheTime');
+          
+          if (data.progress !== undefined) {
+            toast.success(`✓ Progress: ${data.progress}%`, {
+              duration: 1.5,
+              icon: '💾',
+            });
+          }
         } else {
-          toast.success('✓ Progress saved to database!', {
-            duration: 2,
+          console.error('API response was not successful:', data);
+          toast.error('Failed to save progress');
+          // Revert local state on error
+          setProgress(prev => {
+            const updated = { ...prev };
+            delete updated[progressKey];
+            return updated;
           });
         }
-      } else {
-        console.error('API response was not successful:', data);
-        toast.error(data.error || 'Failed to save progress');
-        // Revert local state on error
+      }).catch((error) => {
+        console.error('Error updating progress:', error);
+        toast.error('Failed to update progress');
+        // Revert on error
         setProgress(prev => {
           const updated = { ...prev };
           delete updated[progressKey];
           return updated;
         });
-      }
+      });
     } catch (error) {
-      console.error('Error updating progress:', error);
+      console.error('Error in handleTopicCheck:', error);
       toast.error('Failed to update progress');
     }
-  };
+  }, []);
 
   if (authLoading || planLoading) {
     return (
