@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { getApiUrl } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ChevronLeft, Check } from 'lucide-react';
 import PlanViewer from '@/components/User/PlanViewer';
@@ -46,7 +47,7 @@ export default function PlanPage() {
         return;
       }
 
-      const response = await fetch(`/api/user/currentplan`, {
+      const response = await fetch(getApiUrl(`/api/user/currentplan`), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -134,7 +135,7 @@ export default function PlanPage() {
 
       // Send to server
       console.log('Sending progress update:', { dayNumber, subjectIdx, topicIndex, subtopicIndex, completed: isChecked });
-      const response = await fetch(`/api/user/progress`, {
+      const response = await fetch(getApiUrl(`/api/user/progress`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
